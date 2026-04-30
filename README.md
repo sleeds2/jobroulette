@@ -11,7 +11,7 @@
 
 ## Build
 
-1. Install a recent .NET SDK that supports `net8.0-windows`.
+1. Install a recent .NET SDK that supports `net10.0-windows`.
 2. Restore and build:
 
    ```bash
@@ -20,6 +20,8 @@
    ```
 
 3. Package/load with your preferred Dalamud development workflow.
+
+The project already uses `Dalamud.NET.Sdk` in the project header and does not require legacy `targets/`-based SDK wiring.
 
 ## In-game usage
 

@@ -7,5 +7,12 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AssemblyName>JobRoulettePlugin</AssemblyName>
     <RootNamespace>JobRoulettePlugin</RootNamespace>
+
+    <!-- SDK/manifest metadata managed directly in csproj (recommended by Dalamud.NET.Sdk migration guidance). -->
+    <Author>JobRoulette contributors</Author>
+    <Name>Job Roulette</Name>
+    <InternalName>JobRoulettePlugin</InternalName>
+    <Description>Randomly picks one enabled job and swaps to its gear set via /jobroulette.</Description>
+    <DalamudApiLevel>15</DalamudApiLevel>
   </PropertyGroup>
 </Project>
