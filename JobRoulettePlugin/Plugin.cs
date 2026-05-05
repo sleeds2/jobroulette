@@ -91,21 +91,34 @@ public sealed class Plugin : IDalamudPlugin
             this.PrintError($"No matching gear set found for {selectedJob.Name.ExtractText()}.");
             return;
         }
+
+        var gearsetCommand = $"/gearset change {gearsetIndex + 1}";
+
         try
         {
             if (TryEquipGearsetDirect(gearsetIndex))
             {
                 this.PrintInfo($"Selected {selectedJob.Name.ExtractText()} (gear set {gearsetIndex + 1}).");
+                return;
+            }
+
+            var dispatched = this.chatGui.SendMessage(gearsetCommand);
+            if (dispatched)
+            {
+                this.PrintInfo($"Selected {selectedJob.Name.ExtractText()} (gear set {gearsetIndex + 1}).");
             }
             else
             {
-                this.PrintError($"Failed to equip gear set {gearsetIndex + 1} via RaptureGearsetModule.");
+                this.PrintError($"Failed to dispatch gear set command: {gearsetCommand}");
             }
         }
         catch (Exception ex)
         {
-            this.PrintError($"Failed to equip gear set {gearsetIndex + 1} via RaptureGearsetModule: {ex.Message}");
+            this.PrintError($"Failed to equip gear set using direct or command fallback '{gearsetCommand}': {ex.Message}");
         }
+
+        module->EquipGearset(gearsetIndex);
+        return true;
     }
 
     private static unsafe bool TryEquipGearsetDirect(int gearsetIndex)
