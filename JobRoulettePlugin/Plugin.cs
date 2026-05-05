@@ -92,15 +92,42 @@ public sealed class Plugin : IDalamudPlugin
             return;
         }
 
+        var gearsetCommand = $"/gearset change {gearsetIndex + 1}";
+
         try
         {
-            this.commandManager.ProcessCommand($"/gearset change {gearsetIndex + 1}");
-            this.PrintInfo($"Selected {selectedJob.Name.ExtractText()} (gear set {gearsetIndex + 1}).");
+            if (TryEquipGearsetDirect(gearsetIndex))
+            {
+                this.PrintInfo($"Selected {selectedJob.Name.ExtractText()} (gear set {gearsetIndex + 1}).");
+                return;
+            }
+
+            var dispatched = this.chatGui.SendMessage(gearsetCommand);
+            if (dispatched)
+            {
+                this.PrintInfo($"Selected {selectedJob.Name.ExtractText()} (gear set {gearsetIndex + 1}).");
+            }
+            else
+            {
+                this.PrintError($"Failed to dispatch gear set command: {gearsetCommand}");
+            }
         }
         catch (Exception ex)
         {
-            this.PrintError($"Failed to run gear set change command: {ex.Message}");
+            this.PrintError($"Failed to equip gear set using direct or command fallback '{gearsetCommand}': {ex.Message}");
         }
+    }
+
+    private static unsafe bool TryEquipGearsetDirect(int gearsetIndex)
+    {
+        var module = RaptureGearsetModule.Instance();
+        if (module == null)
+        {
+            return false;
+        }
+
+        module->EquipGearset(gearsetIndex);
+        return true;
     }
 
     private Dictionary<uint, ClassJob> LoadSupportedJobs()
