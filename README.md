@@ -1,25 +1,14 @@
 # Job Roulette Dalamud Plugin
 
-`JobRoulettePlugin` is a Dalamud plugin that randomly chooses one of your enabled combat jobs and switches to that job's saved gear set.
+`JobRoulettePlugin` is a Dalamud plugin for **Final Fantasy XIV** that randomly selects one of your enabled combat jobs and switches to that job's saved gear set.
 
-## Project layout
+## Features
 
-- `JobRoulettePlugin/JobRoulettePlugin.csproj` - plugin project file.
-- `JobRoulettePlugin/Plugin.cs` - plugin entry point, slash command registration, random selection, gear-set switching.
-- `JobRoulettePlugin/Configuration.cs` - persisted plugin settings.
-- `JobRoulettePlugin/Windows/ConfigWindow.cs` - settings UI.
-
-## Build
-
-1. Install a recent .NET SDK that supports `net8.0-windows`.
-2. Restore and build:
-
-   ```bash
-   dotnet restore JobRoulettePlugin/JobRoulettePlugin.csproj
-   dotnet build JobRoulettePlugin/JobRoulettePlugin.csproj -c Release
-   ```
-
-3. Package/load with your preferred Dalamud development workflow.
+- Randomly selects from your enabled combat jobs.
+- Switches to the selected job via that job's saved gear set.
+- In-game slash command (`/jobroulette`).
+- Configuration UI with role-grouped job toggles.
+- One-click `Enable All` / `Disable All` controls.
 
 ## In-game usage
 
@@ -30,20 +19,19 @@
   3. Finds the first saved gear set whose class job matches that selection.
   4. Dispatches `/gearset change X` for that gear set index.
 
-## Configuration UI behavior
+## Configuration
 
-Open plugin settings from Dalamud plugin configuration.
+Open plugin settings from Dalamud's plugin configuration UI.
 
-- Jobs are grouped by role:
-  - Tank
-  - Healer
-  - Melee DPS
-  - Ranged Physical DPS
-  - Magical Ranged DPS
-- Per-job checkboxes are saved immediately when toggled.
-- Convenience buttons:
-  - `Enable All`
-  - `Disable All`
+Jobs are grouped by role:
+
+- Tank
+- Healer
+- Melee DPS
+- Ranged Physical DPS
+- Magical Ranged DPS
+
+Per-job checkboxes are saved immediately when toggled.
 
 ## Feedback and failure modes
 
@@ -55,8 +43,10 @@ The plugin prints chat feedback for key outcomes:
   - no matching gear set exists for the selected job,
   - gear-set command dispatch fails.
 
-## Assumptions / requirements
+## Requirements and notes
 
-- You must have at least one enabled job.
-- Enabled jobs should have a saved gear set to allow swapping.
+- At least one job must be enabled.
+- Enabled jobs should have a saved gear set.
 - If multiple gear sets exist for the same job, the first matching set is used.
+- Non-combat jobs are not included in roulette selection.
+
