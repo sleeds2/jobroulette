@@ -1,0 +1,6 @@
+{
+  "Name": "Job Roulette",
+  "Author": "sarcasticow",
+  "Punchline": "Picks a random job!",
+  "Description": "Uses the slash command /jobroulette to randomly pick a job and switch to the saved gearset. Can be configured to include or exclude certain jobs."
+}
