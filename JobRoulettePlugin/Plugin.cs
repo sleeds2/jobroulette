@@ -91,16 +91,33 @@ public sealed class Plugin : IDalamudPlugin
             this.PrintError($"No matching gear set found for {selectedJob.Name.ExtractText()}.");
             return;
         }
-
         try
         {
-            this.commandManager.ProcessCommand($"/gearset change {gearsetIndex + 1}");
-            this.PrintInfo($"Selected {selectedJob.Name.ExtractText()} (gear set {gearsetIndex + 1}).");
+            if (TryEquipGearsetDirect(gearsetIndex))
+            {
+                this.PrintInfo($"Selected {selectedJob.Name.ExtractText()} (gear set {gearsetIndex + 1}).");
+            }
+            else
+            {
+                this.PrintError($"Failed to equip gear set {gearsetIndex + 1} via RaptureGearsetModule.");
+            }
         }
         catch (Exception ex)
         {
-            this.PrintError($"Failed to run gear set change command: {ex.Message}");
+            this.PrintError($"Failed to equip gear set {gearsetIndex + 1} via RaptureGearsetModule: {ex.Message}");
         }
+    }
+
+    private static unsafe bool TryEquipGearsetDirect(int gearsetIndex)
+    {
+        var module = RaptureGearsetModule.Instance();
+        if (module == null)
+        {
+            return false;
+        }
+
+        module->EquipGearset(gearsetIndex);
+        return true;
     }
 
     private Dictionary<uint, ClassJob> LoadSupportedJobs()
