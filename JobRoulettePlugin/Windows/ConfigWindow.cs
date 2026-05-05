@@ -1,6 +1,7 @@
 using Dalamud.Interface.Windowing;
 using Dalamud.Bindings.ImGui;
 using Lumina.Excel.Sheets;
+using System.Globalization;
 
 namespace JobRoulettePlugin;
 
@@ -56,8 +57,12 @@ public sealed class ConfigWindow : Window
                 ? row.Name.ExtractText()
                 : job.Name;
 
+            var displayName = resolvedName == resolvedName.ToLowerInvariant()
+                ? CultureInfo.CurrentCulture.TextInfo.ToTitleCase(resolvedName)
+                : resolvedName;
+
             var enabled = this.configuration.IsEnabled(job.JobId);
-            if (ImGui.Checkbox($"{resolvedName}##{job.JobId}", ref enabled))
+            if (ImGui.Checkbox($"{displayName}##{job.JobId}", ref enabled))
             {
                 this.configuration.SetEnabled(job.JobId, enabled);
             }
