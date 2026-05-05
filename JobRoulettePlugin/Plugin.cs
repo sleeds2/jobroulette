@@ -116,6 +116,9 @@ public sealed class Plugin : IDalamudPlugin
         {
             this.PrintError($"Failed to equip gear set using direct or command fallback '{gearsetCommand}': {ex.Message}");
         }
+
+        module->EquipGearset(gearsetIndex);
+        return true;
     }
 
     private static unsafe bool TryEquipGearsetDirect(int gearsetIndex)
