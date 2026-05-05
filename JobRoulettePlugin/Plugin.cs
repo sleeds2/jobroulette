@@ -92,8 +92,6 @@ public sealed class Plugin : IDalamudPlugin
             return;
         }
 
-        var gearsetCommand = $"/gearset change {gearsetIndex + 1}";
-
         try
         {
             if (TryEquipGearsetDirect(gearsetIndex))
@@ -102,19 +100,11 @@ public sealed class Plugin : IDalamudPlugin
                 return;
             }
 
-            var dispatched = this.chatGui.SendMessage(gearsetCommand);
-            if (dispatched)
-            {
-                this.PrintInfo($"Selected {selectedJob.Name.ExtractText()} (gear set {gearsetIndex + 1}).");
-            }
-            else
-            {
-                this.PrintError($"Failed to dispatch gear set command: {gearsetCommand}");
-            }
+            this.PrintError($"Failed to equip gear set directly (index {gearsetIndex}).");
         }
         catch (Exception ex)
         {
-            this.PrintError($"Failed to equip gear set using direct or command fallback '{gearsetCommand}': {ex.Message}");
+            this.PrintError($"Failed to equip gear set directly (index {gearsetIndex}): {ex.Message}");
         }
     }
 
