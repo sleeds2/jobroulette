@@ -156,7 +156,7 @@ public sealed class Plugin : IDalamudPlugin
             return false;
         }
 
-        for (var i = 0; i < 100; i++)
+        for (var i = 0; i < module->NumGearsets; i++)
         {
             var gearset = module->GetGearset(i);
             if (gearset == null)
