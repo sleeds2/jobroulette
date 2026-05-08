@@ -15,17 +15,10 @@ public sealed class Plugin : IDalamudPlugin
 
     private const string CommandName = "/jobroulette";
 
-    [PluginService]
-    private static IDalamudPluginInterface PluginInterface { get; set; } = null!;
-
-    [PluginService]
-    private static ICommandManager CommandManager { get; set; } = null!;
-
-    [PluginService]
-    private static IChatGui ChatGui { get; set; } = null!;
-
-    [PluginService]
-    private static IDataManager DataManager { get; set; } = null!;
+    [PluginService] private static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
+    [PluginService] private static ICommandManager CommandManager { get; set; } = null!;
+    [PluginService] private static IChatGui ChatGui { get; set; } = null!;
+    [PluginService] private static IDataManager DataManager { get; set; } = null!;
 
     private readonly WindowSystem windowSystem = new("JobRoulette");
     private readonly ConfigWindow configWindow;
