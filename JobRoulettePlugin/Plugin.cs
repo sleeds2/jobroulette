@@ -12,7 +12,8 @@ namespace JobRoulettePlugin;
 public sealed class Plugin : IDalamudPlugin
 {
     private const string CommandName = "/jobroulette";
-
+    private const string SettingsArgument = "settings";
+    
     [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
     [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
     [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
@@ -41,7 +42,8 @@ public sealed class Plugin : IDalamudPlugin
 
         CommandManager.AddHandler(CommandName, new CommandInfo(this.OnCommand)
         {
-            HelpMessage = "Randomly picks one enabled job and swaps to its gear set."
+            HelpMessage = "Usage: /jobroulette - Randomly pick an enabled job and equip its gear set.\n"
+                        + "Usage: /jobroulette settings - Toggle the Job Roulette settings window."
         });
 
         PluginInterface.UiBuilder.Draw += this.DrawUi;
@@ -58,6 +60,13 @@ public sealed class Plugin : IDalamudPlugin
 
     private void OnCommand(string command, string arguments)
     {
+        var normalizedArguments = arguments.Trim().ToLowerInvariant();
+        if (normalizedArguments == SettingsArgument)
+        {
+            this.configWindow.Toggle();
+            return;
+        }
+
         var enabled = this.configuration.EnabledJobIds
             .Where(this.jobsById.ContainsKey)
             .ToList();
