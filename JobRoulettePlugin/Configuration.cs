@@ -1,5 +1,4 @@
 using Dalamud.Configuration;
-using Dalamud.Plugin;
 
 namespace JobRoulettePlugin;
 
@@ -8,11 +7,6 @@ public sealed class Configuration : IPluginConfiguration
     public int Version { get; set; } = 1;
 
     public HashSet<uint> EnabledJobIds { get; set; } = [];
-
-    [NonSerialized]
-    private IDalamudPluginInterface? pluginInterface;
-
-    public void Initialize(IDalamudPluginInterface pi) => this.pluginInterface = pi;
 
     public bool IsEnabled(uint jobId) => this.EnabledJobIds.Contains(jobId);
 
@@ -42,5 +36,5 @@ public sealed class Configuration : IPluginConfiguration
         this.Save();
     }
 
-    public void Save() => this.pluginInterface?.SavePluginConfig(this);
+    public void Save() => Plugin.PluginInterface.SavePluginConfig(this);
 }

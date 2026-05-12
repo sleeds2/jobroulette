@@ -1,6 +1,7 @@
 using Dalamud.Game.Command;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Interface.Windowing;
+using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Client.UI.Misc;
@@ -10,14 +11,12 @@ namespace JobRoulettePlugin;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public string Name => "Job Roulette";
-
     private const string CommandName = "/jobroulette";
 
-    private readonly IDalamudPluginInterface pluginInterface;
-    private readonly ICommandManager commandManager;
-    private readonly IChatGui chatGui;
-    private readonly IDataManager dataManager;
+    [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
+    [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
+    [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
+    [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
 
     private readonly WindowSystem windowSystem = new("JobRoulette");
     private readonly ConfigWindow configWindow;
@@ -26,19 +25,9 @@ public sealed class Plugin : IDalamudPlugin
     private readonly Configuration configuration;
     private readonly Dictionary<uint, ClassJob> jobsById;
 
-    public Plugin(
-        IDalamudPluginInterface pluginInterface,
-        ICommandManager commandManager,
-        IChatGui chatGui,
-        IDataManager dataManager)
+    public Plugin()
     {
-        this.pluginInterface = pluginInterface;
-        this.commandManager = commandManager;
-        this.chatGui = chatGui;
-        this.dataManager = dataManager;
-
-        this.configuration = this.pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
-        this.configuration.Initialize(this.pluginInterface);
+        this.configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
 
         this.jobsById = this.LoadSupportedJobs();
         if (this.configuration.EnabledJobIds.Count == 0)
@@ -50,20 +39,20 @@ public sealed class Plugin : IDalamudPlugin
         this.configWindow = new ConfigWindow(this.configuration, this.jobsById);
         this.windowSystem.AddWindow(this.configWindow);
 
-        this.commandManager.AddHandler(CommandName, new CommandInfo(this.OnCommand)
+        CommandManager.AddHandler(CommandName, new CommandInfo(this.OnCommand)
         {
             HelpMessage = "Randomly picks one enabled job and swaps to its gear set."
         });
 
-        this.pluginInterface.UiBuilder.Draw += this.DrawUi;
-        this.pluginInterface.UiBuilder.OpenConfigUi += this.OpenConfigUi;
+        PluginInterface.UiBuilder.Draw += this.DrawUi;
+        PluginInterface.UiBuilder.OpenConfigUi += this.OpenConfigUi;
     }
 
     public void Dispose()
     {
-        this.commandManager.RemoveHandler(CommandName);
-        this.pluginInterface.UiBuilder.Draw -= this.DrawUi;
-        this.pluginInterface.UiBuilder.OpenConfigUi -= this.OpenConfigUi;
+        CommandManager.RemoveHandler(CommandName);
+        PluginInterface.UiBuilder.Draw -= this.DrawUi;
+        PluginInterface.UiBuilder.OpenConfigUi -= this.OpenConfigUi;
         this.windowSystem.RemoveAllWindows();
     }
 
@@ -123,7 +112,7 @@ public sealed class Plugin : IDalamudPlugin
     private Dictionary<uint, ClassJob> LoadSupportedJobs()
     {
         var supportedIds = JobCatalog.All.Select(j => j.JobId).ToHashSet();
-        var rows = this.dataManager.GetExcelSheet<ClassJob>()!;
+        var rows = DataManager.GetExcelSheet<ClassJob>()!;
         var result = new Dictionary<uint, ClassJob>();
 
         foreach (var row in rows)
@@ -142,10 +131,10 @@ public sealed class Plugin : IDalamudPlugin
     private void OpenConfigUi() => this.configWindow.IsOpen = true;
 
     private void PrintError(string message)
-        => this.chatGui.PrintError($"[JobRoulette] {message}");
+        => ChatGui.PrintError($"[JobRoulette] {message}");
 
     private void PrintInfo(string message)
-        => this.chatGui.Print(new SeStringBuilder().AddText($"[JobRoulette] {message}").Build());
+        => ChatGui.Print(new SeStringBuilder().AddText($"[JobRoulette] {message}").Build());
 
     private static unsafe bool TryFindGearsetIndexForJob(uint classJobId, out int gearsetIndex)
     {
