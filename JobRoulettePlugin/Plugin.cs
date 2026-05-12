@@ -17,6 +17,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
     [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
     [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
+    [PluginService] internal static IPluginLog PluginLog { get; private set; } = null!;
 
     private readonly WindowSystem windowSystem = new("JobRoulette");
     private readonly ConfigWindow configWindow;
@@ -46,6 +47,8 @@ public sealed class Plugin : IDalamudPlugin
 
         PluginInterface.UiBuilder.Draw += this.DrawUi;
         PluginInterface.UiBuilder.OpenConfigUi += this.OpenConfigUi;
+
+        PluginLog.Information("[JobRoulette] plugin_initialized supportedJobs={SupportedJobs}, enabledJobs={EnabledJobs}", this.jobsById.Count, this.configuration.EnabledJobIds.Count);
     }
 
     public void Dispose()
@@ -54,16 +57,20 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.Draw -= this.DrawUi;
         PluginInterface.UiBuilder.OpenConfigUi -= this.OpenConfigUi;
         this.windowSystem.RemoveAllWindows();
+        PluginLog.Information("[JobRoulette] plugin_disposed");
     }
 
     private void OnCommand(string command, string arguments)
     {
+        PluginLog.Information("[JobRoulette] roulette_requested command={Command}, arguments={Arguments}", command, arguments);
+
         var enabled = this.configuration.EnabledJobIds
             .Where(this.jobsById.ContainsKey)
             .ToList();
 
         if (enabled.Count == 0)
         {
+            PluginLog.Warning("[JobRoulette] roulette_failed_no_jobs_enabled");
             this.PrintError("No jobs are enabled. Open plugin settings and enable at least one job.");
             return;
         }
@@ -71,12 +78,14 @@ public sealed class Plugin : IDalamudPlugin
         var selectedJobId = enabled[this.rng.Next(enabled.Count)];
         if (!this.jobsById.TryGetValue(selectedJobId, out var selectedJob))
         {
+            PluginLog.Warning("[JobRoulette] roulette_failed_missing_job_data jobId={JobId}", selectedJobId);
             this.PrintError($"Unable to resolve class job data for job id {selectedJobId}.");
             return;
         }
 
         if (!TryFindGearsetIndexForJob(selectedJobId, out var gearsetIndex))
         {
+            PluginLog.Warning("[JobRoulette] roulette_failed_no_matching_gearset jobId={JobId}, jobName={JobName}", selectedJobId, selectedJob.Name.ExtractText());
             this.PrintError($"No matching gear set found for {selectedJob.Name.ExtractText()}.");
             return;
         }
@@ -85,14 +94,17 @@ public sealed class Plugin : IDalamudPlugin
         {
             if (TryEquipGearsetDirect(gearsetIndex))
             {
+                PluginLog.Information("[JobRoulette] roulette_completed jobId={JobId}, jobName={JobName}, gearsetIndex={GearsetIndex}", selectedJobId, selectedJob.Name.ExtractText(), gearsetIndex);
                 this.PrintInfo($"Selected {selectedJob.Name.ExtractText()} (gear set {gearsetIndex + 1}).");
                 return;
             }
 
+            PluginLog.Warning("[JobRoulette] roulette_failed_equip_unsuccessful jobId={JobId}, gearsetIndex={GearsetIndex}", selectedJobId, gearsetIndex);
             this.PrintError($"Failed to equip gear set directly (index {gearsetIndex}).");
         }
         catch (Exception ex)
         {
+            PluginLog.Error(ex, "[JobRoulette] roulette_failed_exception jobId={JobId}, gearsetIndex={GearsetIndex}", selectedJobId, gearsetIndex);
             this.PrintError($"Failed to equip gear set directly (index {gearsetIndex}): {ex.Message}");
         }
     }
