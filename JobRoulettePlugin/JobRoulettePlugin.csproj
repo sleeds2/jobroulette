@@ -6,8 +6,6 @@
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <AssemblyName>JobRoulettePlugin</AssemblyName>
-    <RootNamespace>JobRoulettePlugin</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
     <Content Include="..\Data\JobRoulette-icon.png">
