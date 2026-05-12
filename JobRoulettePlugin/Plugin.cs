@@ -11,14 +11,12 @@ namespace JobRoulettePlugin;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    public string Name => "Job Roulette";
-
     private const string CommandName = "/jobroulette";
 
-    [PluginService] private static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
-    [PluginService] private static ICommandManager CommandManager { get; set; } = null!;
-    [PluginService] private static IChatGui ChatGui { get; set; } = null!;
-    [PluginService] private static IDataManager DataManager { get; set; } = null!;
+    [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
+    [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
+    [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
+    [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
 
     private readonly WindowSystem windowSystem = new("JobRoulette");
     private readonly ConfigWindow configWindow;
@@ -30,7 +28,6 @@ public sealed class Plugin : IDalamudPlugin
     public Plugin()
     {
         this.configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
-        this.configuration.Initialize(PluginInterface);
 
         this.jobsById = this.LoadSupportedJobs();
         if (this.configuration.EnabledJobIds.Count == 0)
