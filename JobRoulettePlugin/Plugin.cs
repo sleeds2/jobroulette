@@ -47,6 +47,7 @@ public sealed class Plugin : IDalamudPlugin
         });
 
         PluginInterface.UiBuilder.Draw += this.DrawUi;
+        PluginInterface.UiBuilder.OpenMainUi += this.OpenMainUi;
         PluginInterface.UiBuilder.OpenConfigUi += this.OpenConfigUi;
     }
 
@@ -54,6 +55,7 @@ public sealed class Plugin : IDalamudPlugin
     {
         CommandManager.RemoveHandler(CommandName);
         PluginInterface.UiBuilder.Draw -= this.DrawUi;
+        PluginInterface.UiBuilder.OpenMainUi -= this.OpenMainUi;
         PluginInterface.UiBuilder.OpenConfigUi -= this.OpenConfigUi;
         this.windowSystem.RemoveAllWindows();
     }
@@ -136,6 +138,8 @@ public sealed class Plugin : IDalamudPlugin
     }
 
     private void DrawUi() => this.windowSystem.Draw();
+
+    private void OpenMainUi() => this.configWindow.IsOpen = true;
 
     private void OpenConfigUi() => this.configWindow.IsOpen = true;
 
