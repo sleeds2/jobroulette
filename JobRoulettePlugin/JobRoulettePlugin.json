@@ -5,7 +5,7 @@
   "Description": "Uses the command /jobroulette to randomly pick a job and switch to the saved gearset. Can be configured to include or exclude certain jobs.",
   "ApplicableVersion": "any",
   "RepoUrl": "https://github.com/sleeds2/jobroulette",
-  "IconUrl": "https://raw.githubusercontent.com/sleeds2/jobroulette/main/Data/JobRoulette-icon.png",
+  "IconUrl": "../Data/JobRoulette-icon.png",
   "Tags": [
     "jobs",
     "roulette",
