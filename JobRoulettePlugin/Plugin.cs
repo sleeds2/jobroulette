@@ -12,7 +12,8 @@ namespace JobRoulettePlugin;
 public sealed class Plugin : IDalamudPlugin
 {
     private const string CommandName = "/jobroulette";
-
+    private const string SettingsArgument = "settings";
+    
     [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
     [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
     [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
@@ -42,10 +43,12 @@ public sealed class Plugin : IDalamudPlugin
 
         CommandManager.AddHandler(CommandName, new CommandInfo(this.OnCommand)
         {
-            HelpMessage = "Randomly picks one enabled job and swaps to its gear set."
+            HelpMessage = "Usage: /jobroulette - Randomly pick an enabled job and equip its gear set.\n"
+                        + "Usage: /jobroulette settings - Toggle the Job Roulette settings window."
         });
 
         PluginInterface.UiBuilder.Draw += this.DrawUi;
+        PluginInterface.UiBuilder.OpenMainUi += this.OpenMainUi;
         PluginInterface.UiBuilder.OpenConfigUi += this.OpenConfigUi;
 
         PluginLog.Information("[JobRoulette] plugin_initialized supportedJobs={SupportedJobs}, enabledJobs={EnabledJobs}", this.jobsById.Count, this.configuration.EnabledJobIds.Count);
@@ -55,6 +58,7 @@ public sealed class Plugin : IDalamudPlugin
     {
         CommandManager.RemoveHandler(CommandName);
         PluginInterface.UiBuilder.Draw -= this.DrawUi;
+        PluginInterface.UiBuilder.OpenMainUi -= this.OpenMainUi;
         PluginInterface.UiBuilder.OpenConfigUi -= this.OpenConfigUi;
         this.windowSystem.RemoveAllWindows();
         PluginLog.Information("[JobRoulette] plugin_disposed");
@@ -63,6 +67,12 @@ public sealed class Plugin : IDalamudPlugin
     private void OnCommand(string command, string arguments)
     {
         PluginLog.Information("[JobRoulette] roulette_requested command={Command}, arguments={Arguments}", command, arguments);
+        var normalizedArguments = arguments.Trim().ToLowerInvariant();
+        if (normalizedArguments == SettingsArgument)
+        {
+            this.configWindow.Toggle();
+            return;
+        }
 
         var enabled = this.configuration.EnabledJobIds
             .Where(this.jobsById.ContainsKey)
@@ -140,6 +150,8 @@ public sealed class Plugin : IDalamudPlugin
 
     private void DrawUi() => this.windowSystem.Draw();
 
+    private void OpenMainUi() => this.configWindow.IsOpen = true;
+
     private void OpenConfigUi() => this.configWindow.IsOpen = true;
 
     private void PrintError(string message)
@@ -157,7 +169,7 @@ public sealed class Plugin : IDalamudPlugin
             return false;
         }
 
-        for (var i = 0; i < 100; i++)
+        for (var i = 0; i < module->NumGearsets; i++)
         {
             var gearset = module->GetGearset(i);
             if (gearset == null)

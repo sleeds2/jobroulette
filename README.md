@@ -1,47 +1,18 @@
-# Job Roulette Dalamud Plugin
+# Job Roulette
 
-`JobRoulettePlugin` is a Dalamud plugin for **Final Fantasy XIV** that randomly selects one of your enabled combat jobs and switches to that job's saved gear set.
+`Job Roulette` is a Dalamud plugin for **Final Fantasy XIV** that randomly selects one of your enabled combat jobs and switches to that job's saved gear set.
+
+Have a lot of jobs and don't know what to play? `Job Roulette` takes a basic random job picker, such as my https://wheelofnames.com/ztw-r4y randomizer, and puts the functionality directly into the game.
 
 ## Features
 
 - Randomly selects from your enabled combat jobs.
 - Switches to the selected job via that job's saved gear set.
-- In-game slash command (`/jobroulette`).
 - Configuration UI with role-grouped job toggles.
-- One-click `Enable All` / `Disable All` controls.
 
 ## In-game usage
-
-- Slash command: `/jobroulette`
-- Behavior:
-  1. Reads enabled jobs from plugin configuration.
-  2. Picks one enabled job at random.
-  3. Finds the first saved gear set whose class job matches that selection.
-  4. Dispatches `/gearset change X` for that gear set index.
-
-## Configuration
-
-Open plugin settings from Dalamud's plugin configuration UI.
-
-Jobs are grouped by role:
-
-- Tank
-- Healer
-- Melee DPS
-- Ranged Physical DPS
-- Magical Ranged DPS
-
-Per-job checkboxes are saved immediately when toggled.
-
-## Feedback and failure modes
-
-The plugin prints chat feedback for key outcomes:
-
-- Success includes selected job name and gear set number.
-- Errors are shown when:
-  - no jobs are enabled,
-  - no matching gear set exists for the selected job,
-  - gear-set command dispatch fails.
+- Settings panel allows a selection of jobs. All jobs are enabled by default.
+- In-game slash command (`/jobroulette`) will randomly pick from the enabled jobs and switch to it.
 
 ## Requirements and notes
 
@@ -50,3 +21,7 @@ The plugin prints chat feedback for key outcomes:
 - If multiple gear sets exist for the same job, the first matching set is used.
 - Non-combat jobs are not included in roulette selection.
 
+## Future features
+- Role-based roulettes (only tanks, only healers, etc.)
+- Adventurer-In-Need roulette (Pick a roulette, randomly select a job matching the current in-need role)
+- Random glamplate switching
