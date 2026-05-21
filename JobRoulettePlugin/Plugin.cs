@@ -48,7 +48,6 @@ public sealed class Plugin : IDalamudPlugin
         });
 
         PluginInterface.UiBuilder.Draw += this.DrawUi;
-        PluginInterface.UiBuilder.OpenMainUi += this.OpenMainUi;
         PluginInterface.UiBuilder.OpenConfigUi += this.OpenConfigUi;
 
         PluginLog.Information("plugin_initialized supportedJobs={SupportedJobs}, enabledJobs={EnabledJobs}", this.jobsById.Count, this.configuration.EnabledJobIds.Count);
@@ -58,7 +57,6 @@ public sealed class Plugin : IDalamudPlugin
     {
         CommandManager.RemoveHandler(CommandName);
         PluginInterface.UiBuilder.Draw -= this.DrawUi;
-        PluginInterface.UiBuilder.OpenMainUi -= this.OpenMainUi;
         PluginInterface.UiBuilder.OpenConfigUi -= this.OpenConfigUi;
         this.windowSystem.RemoveAllWindows();
         PluginLog.Information("plugin_disposed");
@@ -149,8 +147,6 @@ public sealed class Plugin : IDalamudPlugin
     }
 
     private void DrawUi() => this.windowSystem.Draw();
-
-    private void OpenMainUi() => this.configWindow.IsOpen = true;
 
     private void OpenConfigUi() => this.configWindow.IsOpen = true;
 
