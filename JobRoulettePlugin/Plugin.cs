@@ -4,6 +4,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 using Lumina.Excel.Sheets;
 
@@ -72,29 +73,31 @@ public sealed class Plugin : IDalamudPlugin
             return;
         }
 
-        var enabled = this.configuration.EnabledJobIds
+        var enabledKnownJobs = this.configuration.EnabledJobIds
             .Where(this.jobsById.ContainsKey)
             .ToList();
-
-        if (enabled.Count == 0)
+        if (enabledKnownJobs.Count == 0)
         {
             PluginLog.Warning("roulette_failed_no_jobs_enabled");
             this.PrintError("No jobs are enabled. Open plugin settings and enable at least one job.");
             return;
         }
 
-        var selectedJobId = enabled[this.rng.Next(enabled.Count)];
+        var eligibleJobs = this.GetEligibleEnabledJobs();
+        if (eligibleJobs.Count == 0)
+        {
+            PluginLog.Warning("roulette_failed_no_eligible_jobs enabledKnownJobs={EnabledKnownJobs}", enabledKnownJobs.Count);
+            this.PrintError("No enabled jobs are currently eligible. Enabled jobs must be unlocked/configured and have an existing gear set.");
+            return;
+        }
+
+        var selectedCandidate = eligibleJobs[this.rng.Next(eligibleJobs.Count)];
+        var selectedJobId = selectedCandidate.JobId;
+        var gearsetIndex = selectedCandidate.GearsetIndex;
         if (!this.jobsById.TryGetValue(selectedJobId, out var selectedJob))
         {
             PluginLog.Warning("roulette_failed_missing_job_data jobId={JobId}", selectedJobId);
             this.PrintError($"Unable to resolve class job data for job id {selectedJobId}.");
-            return;
-        }
-
-        if (!TryFindGearsetIndexForJob(selectedJobId, out var gearsetIndex))
-        {
-            PluginLog.Warning("roulette_failed_no_matching_gearset jobId={JobId}, jobName={JobName}", selectedJobId, selectedJob.Name.ExtractText());
-            this.PrintError($"No matching gear set found for {selectedJob.Name.ExtractText()}.");
             return;
         }
 
@@ -115,6 +118,25 @@ public sealed class Plugin : IDalamudPlugin
             PluginLog.Error(ex, "roulette_failed_exception jobId={JobId}, gearsetIndex={GearsetIndex}", selectedJobId, gearsetIndex);
             this.PrintError($"Failed to equip gear set directly (index {gearsetIndex}): {ex.Message}");
         }
+    }
+
+    private List<EligibleJobCandidate> GetEligibleEnabledJobs()
+    {
+        var candidates = new List<EligibleJobCandidate>();
+        foreach (var jobId in this.configuration.EnabledJobIds.Where(this.jobsById.ContainsKey))
+        {
+            if (!IsJobUnlocked(jobId))
+            {
+                continue;
+            }
+
+            if (TryFindGearsetIndexForJob(jobId, out var gearsetIndex))
+            {
+                candidates.Add(new EligibleJobCandidate(jobId, gearsetIndex));
+            }
+        }
+
+        return candidates;
     }
 
     private static unsafe bool TryEquipGearsetDirect(int gearsetIndex)
@@ -188,7 +210,20 @@ public sealed class Plugin : IDalamudPlugin
         gearsetIndex = -1;
         return false;
     }
+
+    private static unsafe bool IsJobUnlocked(uint classJobId)
+    {
+        var playerState = PlayerState.Instance();
+        if (playerState == null)
+        {
+            return false;
+        }
+
+        return playerState->ClassJobLevels[classJobId] > 0;
+    }
 }
+
+public readonly record struct EligibleJobCandidate(uint JobId, int GearsetIndex);
 
 public static class JobCatalog
 {

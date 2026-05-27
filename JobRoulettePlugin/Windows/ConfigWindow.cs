@@ -1,5 +1,6 @@
 using Dalamud.Interface.Windowing;
 using Dalamud.Bindings.ImGui;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using Lumina.Excel.Sheets;
 using System.Globalization;
 
@@ -26,7 +27,9 @@ public sealed class ConfigWindow : Window
 
         if (ImGui.Button("Enable All"))
         {
-            this.configuration.EnableAll(JobCatalog.All.Select(x => x.JobId));
+            this.configuration.EnableAll(JobCatalog.All
+                .Select(x => x.JobId)
+                .Where(IsJobUnlocked));
         }
 
         ImGui.SameLine();
@@ -62,10 +65,38 @@ public sealed class ConfigWindow : Window
                 : resolvedName;
 
             var enabled = this.configuration.IsEnabled(job.JobId);
-            if (ImGui.Checkbox($"{displayName}##{job.JobId}", ref enabled))
+            var unlocked = IsJobUnlocked(job.JobId);
+            if (!unlocked)
+            {
+                enabled = false;
+                this.configuration.SetEnabled(job.JobId, false);
+            }
+
+            if (!unlocked)
+            {
+                ImGui.BeginDisabled();
+            }
+
+            if (ImGui.Checkbox($"{displayName}##{job.JobId}", ref enabled) && unlocked)
             {
                 this.configuration.SetEnabled(job.JobId, enabled);
             }
+
+            if (!unlocked)
+            {
+                ImGui.EndDisabled();
+            }
         }
+    }
+
+    private static unsafe bool IsJobUnlocked(uint jobId)
+    {
+        var playerState = PlayerState.Instance();
+        if (playerState == null)
+        {
+            return false;
+        }
+
+        return playerState->ClassJobLevels[jobId] > 0;
     }
 }
