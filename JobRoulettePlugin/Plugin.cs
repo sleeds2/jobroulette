@@ -219,7 +219,7 @@ public sealed class Plugin : IDalamudPlugin
             return false;
         }
 
-        return playerState->ClassJobLevels[classJobId] > 0;
+        return playerState->ClassJobLevels[(int)classJobId] > 0;
     }
 }
 
