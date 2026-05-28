@@ -97,6 +97,6 @@ public sealed class ConfigWindow : Window
             return false;
         }
 
-        return playerState->ClassJobLevels[jobId] > 0;
+        return playerState->ClassJobLevels[(int)jobId] > 0;
     }
 }
