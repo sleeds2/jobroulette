@@ -4,7 +4,6 @@ using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
-using FFXIVClientStructs.FFXIV.Client.Game.UI;
 using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 using Lumina.Excel.Sheets;
 
@@ -20,6 +19,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
     [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
     [PluginService] internal static IPluginLog PluginLog { get; private set; } = null!;
+    [PluginService] internal static IPlayerState PlayerState { get; private set; } = null!;
 
     private readonly WindowSystem windowSystem = new("JobRoulette");
     private readonly ConfigWindow configWindow;
@@ -125,7 +125,7 @@ public sealed class Plugin : IDalamudPlugin
         var candidates = new List<EligibleJobCandidate>();
         foreach (var jobId in this.configuration.EnabledJobIds.Where(this.jobsById.ContainsKey))
         {
-            if (!IsJobUnlocked(jobId))
+            if (!IsJobUnlocked(this.jobsById, jobId))
             {
                 continue;
             }
@@ -211,16 +211,8 @@ public sealed class Plugin : IDalamudPlugin
         return false;
     }
 
-    private static unsafe bool IsJobUnlocked(uint classJobId)
-    {
-        var playerState = PlayerState.Instance();
-        if (playerState == null)
-        {
-            return false;
-        }
-
-        return playerState->ClassJobLevels[(int)classJobId] > 0;
-    }
+    internal static bool IsJobUnlocked(IReadOnlyDictionary<uint, ClassJob> jobsById, uint classJobId)
+        => jobsById.TryGetValue(classJobId, out var job) && PlayerState.GetClassJobLevel(job) > 0;
 }
 
 public readonly record struct EligibleJobCandidate(uint JobId, int GearsetIndex);
