@@ -26,7 +26,9 @@ public sealed class ConfigWindow : Window
 
         if (ImGui.Button("Enable All"))
         {
-            this.configuration.EnableAll(JobCatalog.All.Select(x => x.JobId));
+            this.configuration.EnableAll(JobCatalog.All
+                .Select(x => x.JobId)
+                .Where(id => Plugin.IsJobUnlocked(this.jobsById, id)));
         }
 
         ImGui.SameLine();
@@ -61,10 +63,28 @@ public sealed class ConfigWindow : Window
                 ? CultureInfo.CurrentCulture.TextInfo.ToTitleCase(resolvedName)
                 : resolvedName;
 
+            var unlocked = Plugin.IsJobUnlocked(this.jobsById, job.JobId);
             var enabled = this.configuration.IsEnabled(job.JobId);
-            if (ImGui.Checkbox($"{displayName}##{job.JobId}", ref enabled))
+
+            if (Plugin.PlayerState.IsLoaded && !unlocked && enabled)
+            {
+                enabled = false;
+                this.configuration.SetEnabled(job.JobId, false);
+            }
+
+            if (!unlocked)
+            {
+                ImGui.BeginDisabled();
+            }
+
+            if (ImGui.Checkbox($"{displayName}##{job.JobId}", ref enabled) && unlocked)
             {
                 this.configuration.SetEnabled(job.JobId, enabled);
+            }
+
+            if (!unlocked)
+            {
+                ImGui.EndDisabled();
             }
         }
     }
