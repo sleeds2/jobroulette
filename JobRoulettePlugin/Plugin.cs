@@ -13,7 +13,16 @@ public sealed class Plugin : IDalamudPlugin
 {
     private const string CommandName = "/jobroulette";
     private const string SettingsArgument = "settings";
-    
+    private static readonly IReadOnlyDictionary<string, JobRole> RoleArguments = new Dictionary<string, JobRole>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["tank"] = JobRole.Tank,
+        ["healer"] = JobRole.Healer,
+        ["melee"] = JobRole.Melee,
+        ["ranged"] = JobRole.Ranged,
+        ["caster"] = JobRole.Caster,
+        ["magic"] = JobRole.Caster,
+    };
+
     [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
     [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
     [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
@@ -45,6 +54,7 @@ public sealed class Plugin : IDalamudPlugin
         CommandManager.AddHandler(CommandName, new CommandInfo(this.OnCommand)
         {
             HelpMessage = "Usage: /jobroulette - Randomly pick an enabled job and equip its gear set.\n"
+                        + "Usage: /jobroulette tank|healer|melee|ranged|caster|magic - Randomly pick an enabled job from that role. Examples: /jobroulette tank, /jobroulette healer, /jobroulette melee, /jobroulette magic.\n"
                         + "Usage: /jobroulette settings - Toggle the Job Roulette settings window."
         });
 
@@ -73,21 +83,30 @@ public sealed class Plugin : IDalamudPlugin
             return;
         }
 
+        var roleFilter = RoleArguments.TryGetValue(normalizedArguments, out var requestedRole)
+            ? requestedRole
+            : (JobRole?)null;
+        var requestedRoleLabel = roleFilter is { } role ? GetRoleDisplayName(role) : null;
+
         var enabledKnownJobs = this.configuration.EnabledJobIds
-            .Where(this.jobsById.ContainsKey)
+            .Where(jobId => this.IsKnownJobInRole(jobId, roleFilter))
             .ToList();
         if (enabledKnownJobs.Count == 0)
         {
-            PluginLog.Warning("roulette_failed_no_jobs_enabled");
-            this.PrintError("No jobs are enabled. Open plugin settings and enable at least one job.");
+            PluginLog.Warning("roulette_failed_no_jobs_enabled roleFilter={RoleFilter}", roleFilter);
+            this.PrintError(requestedRoleLabel is null
+                ? "No jobs are enabled. Open plugin settings and enable at least one job."
+                : $"No {requestedRoleLabel} jobs are enabled. Open plugin settings and enable at least one {requestedRoleLabel} job.");
             return;
         }
 
-        var eligibleJobs = this.GetEligibleEnabledJobs();
+        var eligibleJobs = this.GetEligibleEnabledJobs(roleFilter);
         if (eligibleJobs.Count == 0)
         {
-            PluginLog.Warning("roulette_failed_no_eligible_jobs enabledKnownJobs={EnabledKnownJobs}", enabledKnownJobs.Count);
-            this.PrintError("No enabled jobs are currently eligible. Enabled jobs must be unlocked/configured and have an existing gear set.");
+            PluginLog.Warning("roulette_failed_no_eligible_jobs enabledKnownJobs={EnabledKnownJobs}, roleFilter={RoleFilter}", enabledKnownJobs.Count, roleFilter);
+            this.PrintError(requestedRoleLabel is null
+                ? "No enabled jobs are currently eligible. Enabled jobs must be unlocked/configured and have an existing gear set."
+                : $"No enabled {requestedRoleLabel} jobs are currently eligible. Enabled {requestedRoleLabel} jobs must be unlocked/configured and have an existing gear set.");
             return;
         }
 
@@ -120,11 +139,16 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
-    private List<EligibleJobCandidate> GetEligibleEnabledJobs()
+    private List<EligibleJobCandidate> GetEligibleEnabledJobs(JobRole? roleFilter = null)
     {
         var candidates = new List<EligibleJobCandidate>();
-        foreach (var jobId in this.configuration.EnabledJobIds.Where(this.jobsById.ContainsKey))
+        foreach (var jobId in this.configuration.EnabledJobIds)
         {
+            if (!this.IsKnownJobInRole(jobId, roleFilter))
+            {
+                continue;
+            }
+
             if (!IsJobUnlocked(this.jobsById, jobId))
             {
                 continue;
@@ -138,6 +162,34 @@ public sealed class Plugin : IDalamudPlugin
 
         return candidates;
     }
+
+    private bool IsKnownJobInRole(uint jobId, JobRole? roleFilter)
+    {
+        if (!this.jobsById.ContainsKey(jobId))
+        {
+            return false;
+        }
+
+        if (roleFilter is null)
+        {
+            return true;
+        }
+
+        return JobCatalog.All.FirstOrDefault(job => job.JobId == jobId) is { } definition
+            && definition.JobId == jobId
+            && definition.Role == roleFilter.Value;
+    }
+
+    private static string GetRoleDisplayName(JobRole role)
+        => role switch
+        {
+            JobRole.Tank => "tank",
+            JobRole.Healer => "healer",
+            JobRole.Melee => "melee",
+            JobRole.Ranged => "ranged",
+            JobRole.Caster => "caster",
+            _ => role.ToString().ToLowerInvariant(),
+        };
 
     private static unsafe bool TryEquipGearsetDirect(int gearsetIndex)
     {
