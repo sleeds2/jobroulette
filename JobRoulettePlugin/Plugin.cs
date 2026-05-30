@@ -53,7 +53,7 @@ public sealed class Plugin : IDalamudPlugin
 
         CommandManager.AddHandler(CommandName, new CommandInfo(this.OnCommand)
         {
-            HelpMessage = "/jobroulette - Randomly pick an enabled job and equip its gear set.\n"
+            HelpMessage = "Randomly pick an enabled job and equip its gear set.\n"
                         + "/jobroulette tank|healer|melee|ranged|caster (or magic) - Randomly pick an enabled job from that role.\n"
                         + "/jobroulette settings - Toggle the Job Roulette settings window."
         });
