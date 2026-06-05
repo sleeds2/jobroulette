@@ -13,14 +13,16 @@ public sealed class Plugin : IDalamudPlugin
 {
     private const string CommandName = "/jobroulette";
     private const string SettingsArgument = "settings";
-    private static readonly IReadOnlyDictionary<string, JobRole> RoleArguments = new Dictionary<string, JobRole>(StringComparer.OrdinalIgnoreCase)
+    private static readonly IReadOnlyDictionary<string, RoleFilter> RoleArguments = new Dictionary<string, RoleFilter>(StringComparer.OrdinalIgnoreCase)
     {
-        ["tank"] = JobRole.Tank,
-        ["healer"] = JobRole.Healer,
-        ["melee"] = JobRole.Melee,
-        ["ranged"] = JobRole.Ranged,
-        ["caster"] = JobRole.Caster,
-        ["magic"] = JobRole.Caster,
+        ["tank"] = new("tank", JobRole.Tank),
+        ["healer"] = new("healer", JobRole.Healer),
+        ["support"] = new("support", JobRole.Tank, JobRole.Healer),
+        ["dps"] = new("DPS", JobRole.Melee, JobRole.Ranged, JobRole.Caster),
+        ["melee"] = new("melee", JobRole.Melee),
+        ["ranged"] = new("ranged", JobRole.Ranged),
+        ["caster"] = new("caster", JobRole.Caster),
+        ["magic"] = new("caster", JobRole.Caster),
     };
 
     [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
@@ -54,7 +56,7 @@ public sealed class Plugin : IDalamudPlugin
         CommandManager.AddHandler(CommandName, new CommandInfo(this.OnCommand)
         {
             HelpMessage = "Randomly pick an enabled job and equip its gear set.\n"
-                        + "/jobroulette tank|healer|melee|ranged|caster (or magic) - Randomly pick an enabled job from that role.\n"
+                        + "/jobroulette support|tank|healer|dps|melee|ranged|caster (or magic) - Randomly pick an enabled job from that role.\n"
                         + "/jobroulette settings - Toggle the Job Roulette settings window."
         });
 
@@ -85,8 +87,8 @@ public sealed class Plugin : IDalamudPlugin
 
         var roleFilter = RoleArguments.TryGetValue(normalizedArguments, out var requestedRole)
             ? requestedRole
-            : (JobRole?)null;
-        var requestedRoleLabel = roleFilter is { } role ? GetRoleDisplayName(role) : null;
+            : null;
+        var requestedRoleLabel = roleFilter?.DisplayName;
 
         var enabledKnownJobs = this.configuration.EnabledJobIds
             .Where(jobId => this.IsKnownJobInRole(jobId, roleFilter))
@@ -139,7 +141,7 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
-    private List<EligibleJobCandidate> GetEligibleEnabledJobs(JobRole? roleFilter = null)
+    private List<EligibleJobCandidate> GetEligibleEnabledJobs(RoleFilter? roleFilter = null)
     {
         var candidates = new List<EligibleJobCandidate>();
         foreach (var jobId in this.configuration.EnabledJobIds)
@@ -163,7 +165,7 @@ public sealed class Plugin : IDalamudPlugin
         return candidates;
     }
 
-    private bool IsKnownJobInRole(uint jobId, JobRole? roleFilter)
+    private bool IsKnownJobInRole(uint jobId, RoleFilter? roleFilter)
     {
         if (!this.jobsById.ContainsKey(jobId))
         {
@@ -177,19 +179,25 @@ public sealed class Plugin : IDalamudPlugin
 
         return JobCatalog.All.FirstOrDefault(job => job.JobId == jobId) is { } definition
             && definition.JobId == jobId
-            && definition.Role == roleFilter.Value;
+            && roleFilter.Includes(definition.Role);
     }
 
-    private static string GetRoleDisplayName(JobRole role)
-        => role switch
+    private sealed class RoleFilter
+    {
+        public RoleFilter(string displayName, params JobRole[] roles)
         {
-            JobRole.Tank => "tank",
-            JobRole.Healer => "healer",
-            JobRole.Melee => "melee",
-            JobRole.Ranged => "ranged",
-            JobRole.Caster => "caster",
-            _ => role.ToString().ToLowerInvariant(),
-        };
+            this.DisplayName = displayName;
+            this.Roles = roles.ToHashSet();
+        }
+
+        public string DisplayName { get; }
+
+        private IReadOnlySet<JobRole> Roles { get; }
+
+        public bool Includes(JobRole role) => this.Roles.Contains(role);
+
+        public override string ToString() => this.DisplayName;
+    }
 
     private static unsafe bool TryEquipGearsetDirect(int gearsetIndex)
     {
