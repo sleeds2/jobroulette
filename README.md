@@ -14,7 +14,7 @@ Have a lot of jobs and don't know what to play? `Job Roulette` takes a basic ran
 
 - Settings panel allows a selection of jobs. All jobs are enabled by default.
 - In-game slash command (`/jobroulette`) will randomly pick from the enabled jobs and switch to it.
-- Add a role argument to restrict the roulette to enabled jobs in that role: `/jobroulette tank`, `/jobroulette healer`, `/jobroulette melee`, `/jobroulette ranged`, `/jobroulette caster`, or `/jobroulette magic`.
+- Add a role argument to restrict the roulette to enabled jobs in that role: `/jobroulette support`, `/jobroulette tank`, `/jobroulette healer`, `/jobroulette dps`, `/jobroulette melee`, `/jobroulette ranged`, `/jobroulette caster`, or `/jobroulette magic`.
 
 ## Requirements and notes
 
