@@ -21,12 +21,12 @@ public static class RouletteCatalog
         new(RouletteType.Leveling, "Duty Roulette: Leveling", ["leveling", "level", "ldr"]),
         new(RouletteType.Trials, "Duty Roulette: Trials", ["trial", "trials"]),
         new(RouletteType.MainScenario, "Duty Roulette: Main Scenario", ["mainscenario", "main", "msq", "ms"]),
-        new(RouletteType.AllianceRaid, "Duty Roulette: Alliance Raid", ["alliance", "allianceraid", "araid"]),
-        new(RouletteType.NormalRaid, "Duty Roulette: Normal Raid", ["normal", "normalraid", "nraid"]),
+        new(RouletteType.AllianceRaid, "Duty Roulette: Alliance Raids", ["alliance", "allianceraid", "allianceraids", "araid", "ally"]),
+        new(RouletteType.NormalRaid, "Duty Roulette: Normal Raids", ["normal", "normalraid", "normalraids", "nraid"]),
         new(RouletteType.Mentor, "Duty Roulette: Mentor", ["mentor"]),
         new(RouletteType.Expert, "Duty Roulette: Expert", ["expert", "ex", "exdr"]),
-        new(RouletteType.HighLevelDungeons, "Duty Roulette: High-level Dungeons", ["highlevel", "high"]),
-        new(RouletteType.LevelCapDungeons, "Duty Roulette: Level Cap Dungeons", ["levelcap", "levelcapdungeons", "cap", "capstone"]),
+        new(RouletteType.HighLevelDungeons, "Duty Roulette: High-level Dungeons", ["highlevel", "high", "hl"]),
+        new(RouletteType.LevelCapDungeons, "Duty Roulette: Level Cap Dungeons", ["levelcap", "levelcapdungeons", "cap"]),
         new(RouletteType.Guildhests, "Duty Roulette: Guildhests", ["guildhest", "guildhests"]),
     ];
 
