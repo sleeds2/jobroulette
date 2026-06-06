@@ -57,6 +57,7 @@ public sealed class Plugin : IDalamudPlugin
         {
             HelpMessage = "Randomly pick an enabled job and equip its gear set.\n"
                         + "/jobroulette support|tank|healer|dps|melee|ranged|caster (or magic) - Randomly pick an enabled job from that role.\n"
+                        + "/jobroulette leveling|expert|highlevel|levelcap|trials|main|alliance|normalraid|mentor - Request a role-in-need roulette job for that duty roulette.\n"
                         + "/jobroulette settings - Toggle the Job Roulette settings window."
         });
 
@@ -78,16 +79,53 @@ public sealed class Plugin : IDalamudPlugin
     private void OnCommand(string command, string arguments)
     {
         PluginLog.Information("roulette_requested command={Command}, arguments={Arguments}", command, arguments);
-        var normalizedArguments = arguments.Trim().ToLowerInvariant();
-        if (normalizedArguments == SettingsArgument)
+        var commandRequest = ParseCommandRequest(arguments);
+        switch (commandRequest.Kind)
         {
-            this.configWindow.Toggle();
-            return;
+            case CommandRequestKind.Settings:
+                this.configWindow.Toggle();
+                return;
+            case CommandRequestKind.JobRoulette:
+                this.RunJobRoulette(commandRequest.RoleFilter);
+                return;
+            case CommandRequestKind.RoleInNeedRoulette:
+                this.HandleRoleInNeedRoulette(commandRequest.Roulette!);
+                return;
+            case CommandRequestKind.Invalid:
+                PluginLog.Warning("roulette_failed_unknown_argument argument={Argument}", commandRequest.OriginalArgument);
+                this.PrintError($"Unknown argument '{commandRequest.OriginalArgument}'. Use /jobroulette, a role filter, a roulette name, or settings.");
+                return;
+        }
+    }
+
+    private static CommandRequest ParseCommandRequest(string arguments)
+    {
+        var normalizedArguments = arguments.Trim();
+        if (string.IsNullOrEmpty(normalizedArguments))
+        {
+            return CommandRequest.JobRoulette(null);
         }
 
-        var roleFilter = RoleArguments.TryGetValue(normalizedArguments, out var requestedRole)
-            ? requestedRole
-            : null;
+        if (normalizedArguments.Equals(SettingsArgument, StringComparison.OrdinalIgnoreCase))
+        {
+            return CommandRequest.Settings();
+        }
+
+        if (RoleArguments.TryGetValue(normalizedArguments, out var roleFilter))
+        {
+            return CommandRequest.JobRoulette(roleFilter);
+        }
+
+        if (RouletteCatalog.TryGet(normalizedArguments, out var roulette))
+        {
+            return CommandRequest.RoleInNeedRoulette(roulette);
+        }
+
+        return CommandRequest.Invalid(normalizedArguments);
+    }
+
+    private void RunJobRoulette(RoleFilter? roleFilter)
+    {
         var requestedRoleLabel = roleFilter?.DisplayName;
 
         var enabledKnownJobs = this.configuration.EnabledJobIds
@@ -141,6 +179,12 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
+    private void HandleRoleInNeedRoulette(RouletteDefinition roulette)
+    {
+        PluginLog.Information("role_in_need_roulette_requested rouletteType={RouletteType}, rouletteName={RouletteName}", roulette.Type, roulette.DisplayName);
+        this.PrintInfo($"Role-in-need roulette requested for {roulette.DisplayName}. Adventurer-in-need lookup is not implemented yet.");
+    }
+
     private List<EligibleJobCandidate> GetEligibleEnabledJobs(RoleFilter? roleFilter = null)
     {
         var candidates = new List<EligibleJobCandidate>();
@@ -180,6 +224,41 @@ public sealed class Plugin : IDalamudPlugin
         return JobCatalog.All.FirstOrDefault(job => job.JobId == jobId) is { } definition
             && definition.JobId == jobId
             && roleFilter.Includes(definition.Role);
+    }
+
+    private enum CommandRequestKind
+    {
+        Settings,
+        JobRoulette,
+        RoleInNeedRoulette,
+        Invalid,
+    }
+
+    private sealed class CommandRequest
+    {
+        private CommandRequest(CommandRequestKind kind, RoleFilter? roleFilter = null, RouletteDefinition? roulette = null, string? originalArgument = null)
+        {
+            this.Kind = kind;
+            this.RoleFilter = roleFilter;
+            this.Roulette = roulette;
+            this.OriginalArgument = originalArgument;
+        }
+
+        public CommandRequestKind Kind { get; }
+
+        public RoleFilter? RoleFilter { get; }
+
+        public RouletteDefinition? Roulette { get; }
+
+        public string? OriginalArgument { get; }
+
+        public static CommandRequest Settings() => new(CommandRequestKind.Settings);
+
+        public static CommandRequest JobRoulette(RoleFilter? roleFilter) => new(CommandRequestKind.JobRoulette, roleFilter);
+
+        public static CommandRequest RoleInNeedRoulette(RouletteDefinition roulette) => new(CommandRequestKind.RoleInNeedRoulette, roulette: roulette);
+
+        public static CommandRequest Invalid(string originalArgument) => new(CommandRequestKind.Invalid, originalArgument: originalArgument);
     }
 
     private sealed class RoleFilter
