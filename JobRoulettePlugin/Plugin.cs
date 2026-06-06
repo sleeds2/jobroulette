@@ -57,7 +57,7 @@ public sealed class Plugin : IDalamudPlugin
         {
             HelpMessage = "Randomly pick an enabled job and equip its gear set.\n"
                         + "/jobroulette support|tank|healer|dps|melee|ranged|caster (or magic) - Randomly pick an enabled job from that role.\n"
-                        + "/jobroulette leveling|expert|highlevel|levelcap|trials|main|alliance|normalraid|mentor - Request a role-in-need roulette job for that duty roulette.\n"
+                        + "/jobroulette leveling|expert|highlevel|levelcap|trials|msq|allianceraid|normalraid|guildhests|mentor - Request a role-in-need roulette job for that duty roulette.\n"
                         + "/jobroulette settings - Toggle the Job Roulette settings window."
         });
 
