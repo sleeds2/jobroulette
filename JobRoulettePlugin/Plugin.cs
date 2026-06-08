@@ -4,6 +4,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 using Lumina.Excel.Sheets;
 
@@ -13,6 +14,27 @@ public sealed class Plugin : IDalamudPlugin
 {
     private const string CommandName = "/jobroulette";
     private const string SettingsArgument = "settings";
+    private static readonly IReadOnlyDictionary<RouletteType, byte> RouletteRowIds = new Dictionary<RouletteType, byte>
+    {
+        [RouletteType.Expert] = 1,
+        [RouletteType.HighLevelDungeons] = 2,
+        [RouletteType.Leveling] = 3,
+        [RouletteType.Trials] = 4,
+        [RouletteType.MainScenario] = 5,
+        [RouletteType.Guildhests] = 6,
+        [RouletteType.Mentor] = 7,
+        [RouletteType.AllianceRaid] = 8,
+        [RouletteType.NormalRaid] = 9,
+        [RouletteType.LevelCapDungeons] = 11,
+    };
+
+    private static readonly IReadOnlyDictionary<ContentsRouletteRole, RoleFilter> RoleInNeedFilters = new Dictionary<ContentsRouletteRole, RoleFilter>
+    {
+        [ContentsRouletteRole.Tank] = new("tank", JobRole.Tank),
+        [ContentsRouletteRole.Healer] = new("healer", JobRole.Healer),
+        [ContentsRouletteRole.Dps] = new("DPS", JobRole.Melee, JobRole.Ranged, JobRole.Caster),
+    };
+
     private static readonly IReadOnlyDictionary<string, RoleFilter> RoleArguments = new Dictionary<string, RoleFilter>(StringComparer.OrdinalIgnoreCase)
     {
         ["tank"] = new("tank", JobRole.Tank),
@@ -181,8 +203,111 @@ public sealed class Plugin : IDalamudPlugin
 
     private void HandleRoleInNeedRoulette(RouletteDefinition roulette)
     {
-        PluginLog.Information("role_in_need_roulette_requested rouletteType={RouletteType}, rouletteName={RouletteName}", roulette.Type, roulette.DisplayName);
-        this.PrintInfo($"Role-in-need roulette requested for {roulette.DisplayName}. Adventurer-in-need lookup is not implemented yet.");
+        PluginLog.Information("roulette_requested rouletteType={RouletteType}, rouletteName={RouletteName}", roulette.Type, roulette.DisplayName);
+
+        var roleStatus = this.TryGetRoleInNeed(roulette.Type, out var roleFilter);
+        switch (roleStatus)
+        {
+            case RoleInNeedLookupStatus.UnsupportedRoulette:
+                PluginLog.Warning("roulette_failed_unsupported_type rouletteType={RouletteType}, rouletteName={RouletteName}", roulette.Type, roulette.DisplayName);
+                this.PrintError($"{roulette.DisplayName} is not supported for adventurer-in-need roulette selection.");
+                return;
+            case RoleInNeedLookupStatus.UnableToReadData:
+                PluginLog.Warning("roulette_failed_role_data_unavailable rouletteType={RouletteType}, rouletteName={RouletteName}", roulette.Type, roulette.DisplayName);
+                this.PrintError($"Unable to read adventurer-in-need data for {roulette.DisplayName}. Open Duty Finder once and try again.");
+                return;
+            case RoleInNeedLookupStatus.NoRoleInNeed:
+                PluginLog.Warning("roulette_failed_no_role_in_need rouletteType={RouletteType}, rouletteName={RouletteName}", roulette.Type, roulette.DisplayName);
+                this.PrintError($"{roulette.DisplayName} does not currently list an adventurer-in-need role.");
+                return;
+            case RoleInNeedLookupStatus.Success:
+                break;
+            default:
+                PluginLog.Warning("roulette_failed_role_lookup_unknown_status rouletteType={RouletteType}, rouletteName={RouletteName}, status={Status}", roulette.Type, roulette.DisplayName, roleStatus);
+                this.PrintError($"Unable to resolve adventurer-in-need data for {roulette.DisplayName}.");
+                return;
+        }
+
+        var roleLabel = roleFilter.DisplayName;
+        var eligibleJobs = this.GetEligibleEnabledJobs(roleFilter);
+        if (eligibleJobs.Count == 0)
+        {
+            PluginLog.Warning("roulette_failed_no_eligible_jobs rouletteType={RouletteType}, rouletteName={RouletteName}, roleFilter={RoleFilter}", roulette.Type, roulette.DisplayName, roleLabel);
+            this.PrintError($"No enabled, unlocked, and configured {roleLabel} jobs are eligible for {roulette.DisplayName}. Enable at least one {roleLabel} job and make sure it has an existing gear set.");
+            return;
+        }
+
+        var selectedCandidate = eligibleJobs[this.rng.Next(eligibleJobs.Count)];
+        var selectedJobId = selectedCandidate.JobId;
+        var gearsetIndex = selectedCandidate.GearsetIndex;
+        if (!this.jobsById.TryGetValue(selectedJobId, out var selectedJob))
+        {
+            PluginLog.Warning("roulette_failed_missing_job_data rouletteType={RouletteType}, rouletteName={RouletteName}, roleFilter={RoleFilter}, jobId={JobId}", roulette.Type, roulette.DisplayName, roleLabel, selectedJobId);
+            this.PrintError($"Unable to resolve class job data for job id {selectedJobId}.");
+            return;
+        }
+
+        try
+        {
+            if (TryEquipGearsetDirect(gearsetIndex))
+            {
+                PluginLog.Information("roulette_completed rouletteType={RouletteType}, rouletteName={RouletteName}, roleFilter={RoleFilter}, jobId={JobId}, jobName={JobName}, gearsetIndex={GearsetIndex}", roulette.Type, roulette.DisplayName, roleLabel, selectedJobId, selectedJob.Name.ExtractText(), gearsetIndex);
+                this.PrintInfo($"{roulette.DisplayName} needs {roleLabel}; selected {selectedJob.Name.ExtractText()} (gear set {gearsetIndex + 1}).");
+                return;
+            }
+
+            PluginLog.Warning("roulette_failed_equip_unsuccessful rouletteType={RouletteType}, rouletteName={RouletteName}, roleFilter={RoleFilter}, jobId={JobId}, gearsetIndex={GearsetIndex}", roulette.Type, roulette.DisplayName, roleLabel, selectedJobId, gearsetIndex);
+            this.PrintError($"{roulette.DisplayName} needs {roleLabel}, but failed to equip gear set directly (index {gearsetIndex}).");
+        }
+        catch (Exception ex)
+        {
+            PluginLog.Error(ex, "roulette_failed_exception rouletteType={RouletteType}, rouletteName={RouletteName}, roleFilter={RoleFilter}, jobId={JobId}, gearsetIndex={GearsetIndex}", roulette.Type, roulette.DisplayName, roleLabel, selectedJobId, gearsetIndex);
+            this.PrintError($"{roulette.DisplayName} needs {roleLabel}, but failed to equip gear set directly (index {gearsetIndex}): {ex.Message}");
+        }
+    }
+
+    private unsafe RoleInNeedLookupStatus TryGetRoleInNeed(RouletteType rouletteType, out RoleFilter roleFilter)
+    {
+        roleFilter = null!;
+        if (!RouletteRowIds.TryGetValue(rouletteType, out var rouletteRowId))
+        {
+            return RoleInNeedLookupStatus.UnsupportedRoulette;
+        }
+
+        try
+        {
+            var contentsFinder = AgentContentsFinder.Instance();
+            if (contentsFinder == null)
+            {
+                return RoleInNeedLookupStatus.UnableToReadData;
+            }
+
+            contentsFinder->Refresh();
+            var bonuses = contentsFinder->ContentRouletteRoleBonuses;
+            var bonusIndex = rouletteRowId > 0 ? rouletteRowId - 1 : rouletteRowId;
+            if (bonusIndex < 0 || bonusIndex >= bonuses.Length)
+            {
+                return RoleInNeedLookupStatus.UnableToReadData;
+            }
+
+            var rouletteRole = bonuses[bonusIndex];
+            if (rouletteRole == ContentsRouletteRole.None)
+            {
+                return RoleInNeedLookupStatus.NoRoleInNeed;
+            }
+
+            if (!RoleInNeedFilters.TryGetValue(rouletteRole, out roleFilter!))
+            {
+                return RoleInNeedLookupStatus.UnableToReadData;
+            }
+
+            return RoleInNeedLookupStatus.Success;
+        }
+        catch (Exception ex)
+        {
+            PluginLog.Warning(ex, "roulette_failed_role_data_exception rouletteType={RouletteType}", rouletteType);
+            return RoleInNeedLookupStatus.UnableToReadData;
+        }
     }
 
     private List<EligibleJobCandidate> GetEligibleEnabledJobs(RoleFilter? roleFilter = null)
@@ -224,6 +349,14 @@ public sealed class Plugin : IDalamudPlugin
         return JobCatalog.All.FirstOrDefault(job => job.JobId == jobId) is { } definition
             && definition.JobId == jobId
             && roleFilter.Includes(definition.Role);
+    }
+
+    private enum RoleInNeedLookupStatus
+    {
+        Success,
+        UnsupportedRoulette,
+        UnableToReadData,
+        NoRoleInNeed,
     }
 
     private enum CommandRequestKind
