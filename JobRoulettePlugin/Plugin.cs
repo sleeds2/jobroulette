@@ -14,33 +14,38 @@ public sealed class Plugin : IDalamudPlugin
 {
     private const string CommandName = "/jobroulette";
     private const string SettingsArgument = "settings";
-    private static readonly IReadOnlyDictionary<RouletteType, byte> RouletteRowIds = new Dictionary<RouletteType, byte>
+
+    private static readonly RoleFilter TankFilter = new("tank", JobRole.Tank);
+    private static readonly RoleFilter HealerFilter = new("healer", JobRole.Healer);
+    private static readonly RoleFilter DpsFilter = new("DPS", JobRole.Melee, JobRole.Ranged, JobRole.Caster);
+
+    private static readonly IReadOnlyDictionary<RouletteType, uint> RouletteRowIds = new Dictionary<RouletteType, uint>
     {
-        [RouletteType.Expert] = 1,
+        [RouletteType.Leveling] = 1,
         [RouletteType.HighLevelDungeons] = 2,
-        [RouletteType.Leveling] = 3,
-        [RouletteType.Trials] = 4,
-        [RouletteType.MainScenario] = 5,
-        [RouletteType.Guildhests] = 6,
-        [RouletteType.Mentor] = 7,
-        [RouletteType.AllianceRaid] = 8,
-        [RouletteType.NormalRaid] = 9,
-        [RouletteType.LevelCapDungeons] = 11,
+        [RouletteType.MainScenario] = 3,
+        [RouletteType.Guildhests] = 4,
+        [RouletteType.Expert] = 5,
+        [RouletteType.Trials] = 6,
+        [RouletteType.LevelCapDungeons] = 8,
+        [RouletteType.Mentor] = 9,
+        [RouletteType.AllianceRaid] = 15,
+        [RouletteType.NormalRaid] = 17,
     };
 
     private static readonly IReadOnlyDictionary<ContentsRouletteRole, RoleFilter> RoleInNeedFilters = new Dictionary<ContentsRouletteRole, RoleFilter>
     {
-        [ContentsRouletteRole.Tank] = new("tank", JobRole.Tank),
-        [ContentsRouletteRole.Healer] = new("healer", JobRole.Healer),
-        [ContentsRouletteRole.Dps] = new("DPS", JobRole.Melee, JobRole.Ranged, JobRole.Caster),
+        [ContentsRouletteRole.Tank] = TankFilter,
+        [ContentsRouletteRole.Healer] = HealerFilter,
+        [ContentsRouletteRole.Dps] = DpsFilter,
     };
 
     private static readonly IReadOnlyDictionary<string, RoleFilter> RoleArguments = new Dictionary<string, RoleFilter>(StringComparer.OrdinalIgnoreCase)
     {
-        ["tank"] = new("tank", JobRole.Tank),
-        ["healer"] = new("healer", JobRole.Healer),
+        ["tank"] = TankFilter,
+        ["healer"] = HealerFilter,
         ["support"] = new("support", JobRole.Tank, JobRole.Healer),
-        ["dps"] = new("DPS", JobRole.Melee, JobRole.Ranged, JobRole.Caster),
+        ["dps"] = DpsFilter,
         ["melee"] = new("melee", JobRole.Melee),
         ["ranged"] = new("ranged", JobRole.Ranged),
         ["caster"] = new("caster", JobRole.Caster),
@@ -172,33 +177,7 @@ public sealed class Plugin : IDalamudPlugin
             return;
         }
 
-        var selectedCandidate = eligibleJobs[this.rng.Next(eligibleJobs.Count)];
-        var selectedJobId = selectedCandidate.JobId;
-        var gearsetIndex = selectedCandidate.GearsetIndex;
-        if (!this.jobsById.TryGetValue(selectedJobId, out var selectedJob))
-        {
-            PluginLog.Warning("roulette_failed_missing_job_data jobId={JobId}", selectedJobId);
-            this.PrintError($"Unable to resolve class job data for job id {selectedJobId}.");
-            return;
-        }
-
-        try
-        {
-            if (TryEquipGearsetDirect(gearsetIndex))
-            {
-                PluginLog.Information("roulette_completed jobId={JobId}, jobName={JobName}, gearsetIndex={GearsetIndex}", selectedJobId, selectedJob.Name.ExtractText(), gearsetIndex);
-                this.PrintInfo($"Selected {selectedJob.Name.ExtractText()} (gear set {gearsetIndex + 1}).");
-                return;
-            }
-
-            PluginLog.Warning("roulette_failed_equip_unsuccessful jobId={JobId}, gearsetIndex={GearsetIndex}", selectedJobId, gearsetIndex);
-            this.PrintError($"Failed to equip gear set directly (index {gearsetIndex}).");
-        }
-        catch (Exception ex)
-        {
-            PluginLog.Error(ex, "roulette_failed_exception jobId={JobId}, gearsetIndex={GearsetIndex}", selectedJobId, gearsetIndex);
-            this.PrintError($"Failed to equip gear set directly (index {gearsetIndex}): {ex.Message}");
-        }
+        this.SelectAndEquipRandomJob(eligibleJobs, null);
     }
 
     private void HandleRoleInNeedRoulette(RouletteDefinition roulette)
@@ -237,32 +216,44 @@ public sealed class Plugin : IDalamudPlugin
             return;
         }
 
+        this.SelectAndEquipRandomJob(eligibleJobs, $"{roulette.DisplayName} needs {roleLabel}");
+    }
+
+    private void SelectAndEquipRandomJob(IReadOnlyList<EligibleJobCandidate> eligibleJobs, string? context)
+    {
         var selectedCandidate = eligibleJobs[this.rng.Next(eligibleJobs.Count)];
         var selectedJobId = selectedCandidate.JobId;
         var gearsetIndex = selectedCandidate.GearsetIndex;
         if (!this.jobsById.TryGetValue(selectedJobId, out var selectedJob))
         {
-            PluginLog.Warning("roulette_failed_missing_job_data rouletteType={RouletteType}, rouletteName={RouletteName}, roleFilter={RoleFilter}, jobId={JobId}", roulette.Type, roulette.DisplayName, roleLabel, selectedJobId);
+            PluginLog.Warning("roulette_failed_missing_job_data context={Context}, jobId={JobId}", context, selectedJobId);
             this.PrintError($"Unable to resolve class job data for job id {selectedJobId}.");
             return;
         }
 
+        var jobName = selectedJob.Name.ExtractText();
         try
         {
             if (TryEquipGearsetDirect(gearsetIndex))
             {
-                PluginLog.Information("roulette_completed rouletteType={RouletteType}, rouletteName={RouletteName}, roleFilter={RoleFilter}, jobId={JobId}, jobName={JobName}, gearsetIndex={GearsetIndex}", roulette.Type, roulette.DisplayName, roleLabel, selectedJobId, selectedJob.Name.ExtractText(), gearsetIndex);
-                this.PrintInfo($"{roulette.DisplayName} needs {roleLabel}; selected {selectedJob.Name.ExtractText()} (gear set {gearsetIndex + 1}).");
+                PluginLog.Information("roulette_completed context={Context}, jobId={JobId}, jobName={JobName}, gearsetIndex={GearsetIndex}", context, selectedJobId, jobName, gearsetIndex);
+                this.PrintInfo(context is null
+                    ? $"Selected {jobName} (gear set {gearsetIndex + 1})."
+                    : $"{context}; selected {jobName} (gear set {gearsetIndex + 1}).");
                 return;
             }
 
-            PluginLog.Warning("roulette_failed_equip_unsuccessful rouletteType={RouletteType}, rouletteName={RouletteName}, roleFilter={RoleFilter}, jobId={JobId}, gearsetIndex={GearsetIndex}", roulette.Type, roulette.DisplayName, roleLabel, selectedJobId, gearsetIndex);
-            this.PrintError($"{roulette.DisplayName} needs {roleLabel}, but failed to equip gear set directly (index {gearsetIndex}).");
+            PluginLog.Warning("roulette_failed_equip_unsuccessful context={Context}, jobId={JobId}, gearsetIndex={GearsetIndex}", context, selectedJobId, gearsetIndex);
+            this.PrintError(context is null
+                ? $"Failed to equip gear set directly (index {gearsetIndex})."
+                : $"{context}, but failed to equip gear set directly (index {gearsetIndex}).");
         }
         catch (Exception ex)
         {
-            PluginLog.Error(ex, "roulette_failed_exception rouletteType={RouletteType}, rouletteName={RouletteName}, roleFilter={RoleFilter}, jobId={JobId}, gearsetIndex={GearsetIndex}", roulette.Type, roulette.DisplayName, roleLabel, selectedJobId, gearsetIndex);
-            this.PrintError($"{roulette.DisplayName} needs {roleLabel}, but failed to equip gear set directly (index {gearsetIndex}): {ex.Message}");
+            PluginLog.Error(ex, "roulette_failed_exception context={Context}, jobId={JobId}, gearsetIndex={GearsetIndex}", context, selectedJobId, gearsetIndex);
+            this.PrintError(context is null
+                ? $"Failed to equip gear set directly (index {gearsetIndex}): {ex.Message}"
+                : $"{context}, but failed to equip gear set directly (index {gearsetIndex}): {ex.Message}");
         }
     }
 
@@ -284,7 +275,14 @@ public sealed class Plugin : IDalamudPlugin
 
             contentsFinder->Refresh();
             var bonuses = contentsFinder->ContentRouletteRoleBonuses;
-            var bonusIndex = rouletteRowId > 0 ? rouletteRowId - 1 : rouletteRowId;
+
+            var rouletteSheet = DataManager.GetExcelSheet<ContentRoulette>();
+            if (rouletteSheet is null || !rouletteSheet.TryGetRow(rouletteRowId, out var rouletteRow))
+            {
+                return RoleInNeedLookupStatus.UnableToReadData;
+            }
+
+            var bonusIndex = (int)rouletteRow.ContentRouletteRoleBonus.RowId;
             if (bonusIndex < 0 || bonusIndex >= bonuses.Length)
             {
                 return RoleInNeedLookupStatus.UnableToReadData;
