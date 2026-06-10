@@ -2,7 +2,7 @@
 
 `Job Roulette` is a Dalamud plugin for **Final Fantasy XIV** that randomly selects one of your enabled combat jobs and switches to that job's saved gear set.
 
-Have a lot of jobs and don't know what to play? `Job Roulette` takes a basic random job picker, such as https://wheelofnames.com/ztw-r4y randomizer, and puts the functionality directly into the game.
+Have a lot of jobs and don't know what to play? `Job Roulette` will pick one based on a number of settings you can control!
 
 ## Features
 
@@ -14,8 +14,25 @@ Have a lot of jobs and don't know what to play? `Job Roulette` takes a basic ran
 
 - Settings panel allows a selection of jobs. All jobs are enabled by default.
 - In-game slash command (`/jobroulette`) will randomly pick from the enabled jobs and switch to it.
-- Add a role argument to restrict the roulette to enabled jobs in that role: `/jobroulette support`, `/jobroulette tank`, `/jobroulette healer`, `/jobroulette dps`, `/jobroulette melee`, `/jobroulette ranged`, `/jobroulette caster`, or `/jobroulette magic`
-- Supports Adventurer-In-Need bonuses when roulette is specified: `/jobroulette leveling`, `/jobroulette expert`, etc.
+- Add a role argument to restrict the roulette to enabled jobs in that role, e.g. `/jobroulette tank` or `/jobroulette support`
+  - All Supports (tanks and healers): `support`
+  - Tanks: `tank`
+  - Healers: `healer`
+  - All DPS (melee, physical ranged, caster): `dps`
+  - Melee: `melee`
+  - Physical Ranged: `ranged`
+  - Caster: `caster`, or `magic`
+- Supports Adventurer-In-Need bonuses when roulette is specified, e.g. `/jobroulette trials`
+  - Leveling Roulette: `leveling, level, ldr`
+  - Trials: `trial`, `trials`
+  - Main Scenario: `mainscenario`, `main`, `msq`, `ms`
+  - Alliance Raids: `alliance`, `allianceraid`, `allianceraids`, `araid`, `ally`
+  - Normal Raids: `normal`, `normalraid`, `normalraids`, `nraid`
+  - Mentor: `mentor`
+  - Expert: `expert`, `ex`, `exdr`
+  - High-Level Dungeons: `highlevel`, `high`, `hl`
+  - Level Cap Dungeons: `levelcap`, `levelcapdungeons`, `cap`
+  - Guildhests: `guildhest`, `guildhests`
 
 ## Requirements and notes
 
