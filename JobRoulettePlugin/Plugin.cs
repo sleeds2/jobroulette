@@ -13,6 +13,7 @@ namespace JobRoulettePlugin;
 public sealed class Plugin : IDalamudPlugin
 {
     private const string CommandName = "/jobroulette";
+    private const string CommandAlias = "/jr";
     private const string SettingsArgument = "settings";
 
     private static readonly RoleFilter TankFilter = new("tank", JobRole.Tank);
@@ -88,6 +89,11 @@ public sealed class Plugin : IDalamudPlugin
                         + "/jobroulette settings - Toggle the Job Roulette settings window."
         });
 
+        CommandManager.AddHandler(CommandAlias, new CommandInfo(this.OnCommand)
+        {
+            HelpMessage = "Alias for /jobroulette."
+        });
+
         PluginInterface.UiBuilder.Draw += this.DrawUi;
         PluginInterface.UiBuilder.OpenConfigUi += this.OpenConfigUi;
 
@@ -97,6 +103,7 @@ public sealed class Plugin : IDalamudPlugin
     public void Dispose()
     {
         CommandManager.RemoveHandler(CommandName);
+        CommandManager.RemoveHandler(CommandAlias);
         PluginInterface.UiBuilder.Draw -= this.DrawUi;
         PluginInterface.UiBuilder.OpenConfigUi -= this.OpenConfigUi;
         this.windowSystem.RemoveAllWindows();
