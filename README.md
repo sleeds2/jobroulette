@@ -9,6 +9,8 @@ Have a lot of jobs and don't know what to play? `Job Roulette` will pick one bas
 - Randomly selects from your enabled combat jobs.
 - Switches to the selected job via that job's saved gear set.
 - Configuration UI with role-grouped job toggles.
+- Option to randomly select a glamour plate apply after switching to the selected job.
+
 
 ## In-game usage
 
@@ -33,6 +35,7 @@ Have a lot of jobs and don't know what to play? `Job Roulette` will pick one bas
   - High-Level Dungeons: `highlevel`, `high`, `hl`
   - Level Cap Dungeons: `levelcap`, `levelcapdungeons`, `cap`
   - Guildhests: `guildhest`, `guildhests`
+- Toggle random glamplate switching via `/jobroulette glam` command or the settings window.
 
 ## Requirements and notes
 

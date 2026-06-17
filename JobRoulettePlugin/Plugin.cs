@@ -86,6 +86,7 @@ public sealed class Plugin : IDalamudPlugin
             HelpMessage = "Randomly pick an enabled job and equip its gear set.\n"
                         + "/jobroulette support|tank|healer|dps|melee|ranged|caster (or magic) - Randomly pick an enabled job from that role.\n"
                         + "/jobroulette leveling|expert|highlevel|levelcap|trials|msq|allianceraid|normalraid|guildhests|mentor - Request a role-in-need roulette job for that duty roulette.\n"
+                        + "/jobroulette glam|glamour - Toggle random Glamour Plate selection on/off.\n"
                         + "/jobroulette settings - Toggle the Job Roulette settings window."
         });
 
@@ -119,6 +120,13 @@ public sealed class Plugin : IDalamudPlugin
             case CommandRequestKind.Settings:
                 this.configWindow.Toggle();
                 return;
+            case CommandRequestKind.ToggleGlamour:
+                this.configuration.RandomGlamourPlate = !this.configuration.RandomGlamourPlate;
+                this.configuration.Save();
+                var state = this.configuration.RandomGlamourPlate ? "enabled" : "disabled";
+                PluginLog.Information("glamour_plate_toggled enabled={Enabled}", this.configuration.RandomGlamourPlate);
+                this.PrintInfo($"Random Glamour Plate is now {state}.");
+                return;
             case CommandRequestKind.JobRoulette:
                 this.RunJobRoulette(commandRequest.RoleFilter);
                 return;
@@ -143,6 +151,12 @@ public sealed class Plugin : IDalamudPlugin
         if (normalizedArguments.Equals(SettingsArgument, StringComparison.OrdinalIgnoreCase))
         {
             return CommandRequest.Settings();
+        }
+
+        if (normalizedArguments.Equals("glam", StringComparison.OrdinalIgnoreCase)
+            || normalizedArguments.Equals("glamour", StringComparison.OrdinalIgnoreCase))
+        {
+            return CommandRequest.ToggleGlamour();
         }
 
         if (RoleArguments.TryGetValue(normalizedArguments, out var roleFilter))
@@ -238,15 +252,23 @@ public sealed class Plugin : IDalamudPlugin
             return;
         }
 
+        // Pick a random Glamour Plate (1–20) when the feature is enabled; 0 means use the linked plate.
+        byte glamourPlateId = 0;
+        if (this.configuration.RandomGlamourPlate)
+        {
+            glamourPlateId = (byte)this.rng.Next(1, 21);
+        }
+
         var jobName = selectedJob.Name.ExtractText();
         try
         {
-            if (TryEquipGearsetDirect(gearsetIndex))
+            if (TryEquipGearsetDirect(gearsetIndex, glamourPlateId))
             {
-                PluginLog.Information("roulette_completed context={Context}, jobId={JobId}, jobName={JobName}, gearsetIndex={GearsetIndex}", context, selectedJobId, jobName, gearsetIndex);
+                var plateLabel = glamourPlateId > 0 ? $", glamour plate {glamourPlateId}" : string.Empty;
+                PluginLog.Information("roulette_completed context={Context}, jobId={JobId}, jobName={JobName}, gearsetIndex={GearsetIndex}, glamourPlateId={GlamourPlateId}", context, selectedJobId, jobName, gearsetIndex, glamourPlateId);
                 this.PrintInfo(context is null
-                    ? $"Selected {jobName} (gear set {gearsetIndex + 1})."
-                    : $"{context}; selected {jobName} (gear set {gearsetIndex + 1}).");
+                    ? $"Selected {jobName} (gear set {gearsetIndex + 1}{plateLabel})."
+                    : $"{context}; selected {jobName} (gear set {gearsetIndex + 1}{plateLabel}).");
                 return;
             }
 
@@ -367,6 +389,7 @@ public sealed class Plugin : IDalamudPlugin
     private enum CommandRequestKind
     {
         Settings,
+        ToggleGlamour,
         JobRoulette,
         RoleInNeedRoulette,
         Invalid,
@@ -392,6 +415,8 @@ public sealed class Plugin : IDalamudPlugin
 
         public static CommandRequest Settings() => new(CommandRequestKind.Settings);
 
+        public static CommandRequest ToggleGlamour() => new(CommandRequestKind.ToggleGlamour);
+
         public static CommandRequest JobRoulette(RoleFilter? roleFilter) => new(CommandRequestKind.JobRoulette, roleFilter);
 
         public static CommandRequest RoleInNeedRoulette(RouletteDefinition roulette) => new(CommandRequestKind.RoleInNeedRoulette, roulette: roulette);
@@ -416,7 +441,7 @@ public sealed class Plugin : IDalamudPlugin
         public override string ToString() => this.DisplayName;
     }
 
-    private static unsafe bool TryEquipGearsetDirect(int gearsetIndex)
+    private static unsafe bool TryEquipGearsetDirect(int gearsetIndex, byte glamourPlateId = 0)
     {
         var module = RaptureGearsetModule.Instance();
         if (module == null)
@@ -424,7 +449,7 @@ public sealed class Plugin : IDalamudPlugin
             return false;
         }
 
-        module->EquipGearset(gearsetIndex);
+        module->EquipGearset(gearsetIndex, glamourPlateId);
         return true;
     }
 

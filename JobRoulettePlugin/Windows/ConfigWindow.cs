@@ -39,6 +39,27 @@ public sealed class ConfigWindow : Window
 
         ImGui.Separator();
 
+        // ── Glamour Plate ────────────────────────────────────────────────
+        if (ImGui.CollapsingHeader("Glamour Plate", ImGuiTreeNodeFlags.DefaultOpen))
+        {
+            var randomGlamour = this.configuration.RandomGlamourPlate;
+            if (ImGui.Checkbox("Equip a random Glamour Plate##randomGlamour", ref randomGlamour))
+            {
+                this.configuration.RandomGlamourPlate = randomGlamour;
+                this.configuration.Save();
+            }
+
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip(
+                    "When enabled, a random Glamour Plate (1\u201320) will be applied\n"
+                    + "each time Job Roulette selects a job.\n"
+                    + "Toggle with /jobroulette glam.");
+            }
+        }
+
+        ImGui.Separator();
+
         DrawRoleSection(JobRole.Tank, "Tank");
         DrawRoleSection(JobRole.Healer, "Healer");
         DrawRoleSection(JobRole.Melee, "Melee DPS");

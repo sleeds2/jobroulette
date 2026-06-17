@@ -8,6 +8,11 @@ public sealed class Configuration : IPluginConfiguration
 
     public HashSet<uint> EnabledJobIds { get; set; } = [];
 
+    /// <summary>
+    /// When true, a random Glamour Plate (1–20) will be applied alongside the selected gear set.
+    /// </summary>
+    public bool RandomGlamourPlate { get; set; } = false;
+
     public bool IsEnabled(uint jobId) => this.EnabledJobIds.Contains(jobId);
 
     public void SetEnabled(uint jobId, bool enabled)
