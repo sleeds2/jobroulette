@@ -364,11 +364,13 @@ public sealed class Plugin : IDalamudPlugin
 
     private bool IsKnownJobInRole(uint jobId, RoleFilter? roleFilter)
     {
-        if (JobCatalog.All.FirstOrDefault(job => job.JobId == jobId) is not { } definition)
+        var definitionIndex = Array.FindIndex(JobCatalog.All, job => job.JobId == jobId);
+        if (definitionIndex < 0)
         {
             return false;
         }
 
+        var definition = JobCatalog.All[definitionIndex];
         if (!this.jobsById.ContainsKey(definition.JobId) && (definition.ClassId is null || !this.jobsById.ContainsKey(definition.ClassId.Value)))
         {
             return false;
