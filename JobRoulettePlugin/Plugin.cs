@@ -548,7 +548,7 @@ public static class JobCatalog
         new(37, "Gunbreaker", JobRole.Tank),
 
         new(24, "White Mage", JobRole.Healer, 6),
-        new(28, "Scholar", JobRole.Healer, 26),
+        new(28, "Scholar", JobRole.Healer),
         new(33, "Astrologian", JobRole.Healer),
         new(40, "Sage", JobRole.Healer),
 
