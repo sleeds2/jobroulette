@@ -243,7 +243,7 @@ public sealed class Plugin : IDalamudPlugin
     private void SelectAndEquipRandomJob(IReadOnlyList<EligibleJobCandidate> eligibleJobs, string? context)
     {
         var selectedCandidate = eligibleJobs[this.rng.Next(eligibleJobs.Count)];
-        var selectedJobId = selectedCandidate.JobId;
+        var selectedJobId = selectedCandidate.ClassJobId;
         var gearsetIndex = selectedCandidate.GearsetIndex;
         if (!this.jobsById.TryGetValue(selectedJobId, out var selectedJob))
         {
@@ -340,21 +340,22 @@ public sealed class Plugin : IDalamudPlugin
     private List<EligibleJobCandidate> GetEligibleEnabledJobs(RoleFilter? roleFilter = null)
     {
         var candidates = new List<EligibleJobCandidate>();
-        foreach (var jobId in this.configuration.EnabledJobIds)
+        foreach (var definition in JobCatalog.All)
         {
-            if (!this.IsKnownJobInRole(jobId, roleFilter))
+            if (!this.configuration.IsEnabled(definition.JobId) || !this.IsKnownJobInRole(definition.JobId, roleFilter))
             {
                 continue;
             }
 
-            if (!IsJobUnlocked(this.jobsById, jobId))
+            var selectableClassJobId = ResolveSelectableClassJobId(this.jobsById, definition);
+            if (selectableClassJobId is null)
             {
                 continue;
             }
 
-            if (TryFindGearsetIndexForJob(jobId, out var gearsetIndex))
+            if (TryFindGearsetIndexForJob(selectableClassJobId.Value, out var gearsetIndex))
             {
-                candidates.Add(new EligibleJobCandidate(jobId, gearsetIndex));
+                candidates.Add(new EligibleJobCandidate(selectableClassJobId.Value, gearsetIndex));
             }
         }
 
@@ -363,19 +364,19 @@ public sealed class Plugin : IDalamudPlugin
 
     private bool IsKnownJobInRole(uint jobId, RoleFilter? roleFilter)
     {
-        if (!this.jobsById.ContainsKey(jobId))
+        var definitionIndex = Array.FindIndex(JobCatalog.All, job => job.JobId == jobId);
+        if (definitionIndex < 0)
         {
             return false;
         }
 
-        if (roleFilter is null)
+        var definition = JobCatalog.All[definitionIndex];
+        if (!this.jobsById.ContainsKey(definition.JobId) && (definition.ClassId is null || !this.jobsById.ContainsKey(definition.ClassId.Value)))
         {
-            return true;
+            return false;
         }
 
-        return JobCatalog.All.FirstOrDefault(job => job.JobId == jobId) is { } definition
-            && definition.JobId == jobId
-            && roleFilter.Includes(definition.Role);
+        return roleFilter is null || roleFilter.Includes(definition.Role);
     }
 
     private enum RoleInNeedLookupStatus
@@ -455,7 +456,9 @@ public sealed class Plugin : IDalamudPlugin
 
     private Dictionary<uint, ClassJob> LoadSupportedJobs()
     {
-        var supportedIds = JobCatalog.All.Select(j => j.JobId).ToHashSet();
+        var supportedIds = JobCatalog.All
+            .SelectMany(j => j.ClassId is { } classId ? [j.JobId, classId] : new[] { j.JobId })
+            .ToHashSet();
         var rows = DataManager.GetExcelSheet<ClassJob>()!;
         var result = new Dictionary<uint, ClassJob>();
 
@@ -513,45 +516,61 @@ public sealed class Plugin : IDalamudPlugin
         return false;
     }
 
+    internal static uint? ResolveSelectableClassJobId(IReadOnlyDictionary<uint, ClassJob> jobsById, JobDefinition definition)
+    {
+        if (IsJobUnlocked(jobsById, definition.JobId))
+        {
+            return definition.JobId;
+        }
+
+        if (definition.ClassId is not { } classId || !jobsById.TryGetValue(classId, out var classJob))
+        {
+            return null;
+        }
+
+        var classLevel = PlayerState.GetClassJobLevel(classJob);
+        return classLevel is > 0 and < 30 ? classId : null;
+    }
+
     internal static bool IsJobUnlocked(IReadOnlyDictionary<uint, ClassJob> jobsById, uint classJobId)
         => jobsById.TryGetValue(classJobId, out var job) && PlayerState.GetClassJobLevel(job) > 0;
 }
 
-public readonly record struct EligibleJobCandidate(uint JobId, int GearsetIndex);
+public readonly record struct EligibleJobCandidate(uint ClassJobId, int GearsetIndex);
 
 public static class JobCatalog
 {
     public static readonly JobDefinition[] All =
     [
-        new(19, "Paladin", JobRole.Tank),
-        new(21, "Warrior", JobRole.Tank),
+        new(19, "Paladin", JobRole.Tank, 1),
+        new(21, "Warrior", JobRole.Tank, 3),
         new(32, "Dark Knight", JobRole.Tank),
         new(37, "Gunbreaker", JobRole.Tank),
 
-        new(24, "White Mage", JobRole.Healer),
+        new(24, "White Mage", JobRole.Healer, 6),
         new(28, "Scholar", JobRole.Healer),
         new(33, "Astrologian", JobRole.Healer),
         new(40, "Sage", JobRole.Healer),
 
-        new(20, "Monk", JobRole.Melee),
-        new(22, "Dragoon", JobRole.Melee),
-        new(30, "Ninja", JobRole.Melee),
+        new(20, "Monk", JobRole.Melee, 2),
+        new(22, "Dragoon", JobRole.Melee, 4),
+        new(30, "Ninja", JobRole.Melee, 29),
         new(34, "Samurai", JobRole.Melee),
         new(39, "Reaper", JobRole.Melee),
         new(41, "Viper", JobRole.Melee),
 
-        new(23, "Bard", JobRole.Ranged),
+        new(23, "Bard", JobRole.Ranged, 5),
         new(31, "Machinist", JobRole.Ranged),
         new(38, "Dancer", JobRole.Ranged),
 
-        new(25, "Black Mage", JobRole.Caster),
-        new(27, "Summoner", JobRole.Caster),
+        new(25, "Black Mage", JobRole.Caster, 7),
+        new(27, "Summoner", JobRole.Caster, 26),
         new(35, "Red Mage", JobRole.Caster),
         new(42, "Pictomancer", JobRole.Caster),
     ];
 }
 
-public readonly record struct JobDefinition(uint JobId, string Name, JobRole Role);
+public readonly record struct JobDefinition(uint JobId, string Name, JobRole Role, uint? ClassId = null);
 
 public enum JobRole
 {

@@ -27,8 +27,8 @@ public sealed class ConfigWindow : Window
         if (ImGui.Button("Enable All"))
         {
             this.configuration.EnableAll(JobCatalog.All
-                .Select(x => x.JobId)
-                .Where(id => Plugin.IsJobUnlocked(this.jobsById, id)));
+                .Where(definition => Plugin.ResolveSelectableClassJobId(this.jobsById, definition) is not null)
+                .Select(definition => definition.JobId));
         }
 
         ImGui.SameLine();
@@ -76,7 +76,9 @@ public sealed class ConfigWindow : Window
 
         foreach (var job in JobCatalog.All.Where(x => x.Role == role))
         {
-            var resolvedName = this.jobsById.TryGetValue(job.JobId, out var row)
+            var selectableClassJobId = Plugin.ResolveSelectableClassJobId(this.jobsById, job);
+            var displayClassJobId = selectableClassJobId ?? job.JobId;
+            var resolvedName = this.jobsById.TryGetValue(displayClassJobId, out var row)
                 ? row.Name.ExtractText()
                 : job.Name;
 
@@ -84,26 +86,26 @@ public sealed class ConfigWindow : Window
                 ? CultureInfo.CurrentCulture.TextInfo.ToTitleCase(resolvedName)
                 : resolvedName;
 
-            var unlocked = Plugin.IsJobUnlocked(this.jobsById, job.JobId);
+            var selectable = selectableClassJobId is not null;
             var enabled = this.configuration.IsEnabled(job.JobId);
 
-            if (Plugin.PlayerState.IsLoaded && !unlocked && enabled)
+            if (Plugin.PlayerState.IsLoaded && !selectable && enabled)
             {
                 enabled = false;
                 this.configuration.SetEnabled(job.JobId, false);
             }
 
-            if (!unlocked)
+            if (!selectable)
             {
                 ImGui.BeginDisabled();
             }
 
-            if (ImGui.Checkbox($"{displayName}##{job.JobId}", ref enabled) && unlocked)
+            if (ImGui.Checkbox($"{displayName}##{job.JobId}", ref enabled) && selectable)
             {
                 this.configuration.SetEnabled(job.JobId, enabled);
             }
 
-            if (!unlocked)
+            if (!selectable)
             {
                 ImGui.EndDisabled();
             }
