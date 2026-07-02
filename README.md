@@ -46,6 +46,3 @@ Have a lot of jobs and don't know what to play? `Job Roulette` will pick one bas
 - If multiple gear sets exist for the same job, the first matching set is used.
 - Non-combat jobs and limited jobs are not included in roulette selection.
 - Classes are currently not supported.
-
-## Future features
-- Random glamplate switching
