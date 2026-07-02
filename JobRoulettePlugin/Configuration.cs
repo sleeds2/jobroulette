@@ -13,6 +13,11 @@ public sealed class Configuration : IPluginConfiguration
     /// </summary>
     public bool RandomGlamourPlate { get; set; } = false;
 
+    /// <summary>
+    /// When true, the job roulette may select the player's current job.
+    /// </summary>
+    public bool AllowCurrentJob { get; set; } = true;
+
     public bool IsEnabled(uint jobId) => this.EnabledJobIds.Contains(jobId);
 
     public void SetEnabled(uint jobId, bool enabled)
