@@ -15,6 +15,7 @@ public sealed class Plugin : IDalamudPlugin
     private const string CommandName = "/jobroulette";
     private const string CommandAlias = "/jr";
     private const string SettingsArgument = "settings";
+    private const string CurrentJobArgument = "current";
 
     private static readonly RoleFilter TankFilter = new("tank", JobRole.Tank);
     private static readonly RoleFilter HealerFilter = new("healer", JobRole.Healer);
@@ -87,6 +88,7 @@ public sealed class Plugin : IDalamudPlugin
                         + "/jobroulette support|tank|healer|dps|melee|ranged|caster (or magic) - Randomly pick an enabled job from that role.\n"
                         + "/jobroulette leveling|expert|highlevel|levelcap|trials|msq|allianceraid|normalraid|guildhests|mentor - Request a role-in-need roulette job for that duty roulette.\n"
                         + "/jobroulette glam|glamour - Toggle random Glamour Plate selection on/off.\n"
+                        + "/jobroulette current|currentjob - Toggle whether Job Roulette may select your current job.\n"
                         + "/jobroulette settings - Toggle the Job Roulette settings window."
         });
 
@@ -127,6 +129,13 @@ public sealed class Plugin : IDalamudPlugin
                 PluginLog.Information("glamour_plate_toggled enabled={Enabled}", this.configuration.RandomGlamourPlate);
                 this.PrintInfo($"Random Glamour Plate is now {state}.");
                 return;
+            case CommandRequestKind.ToggleCurrentJob:
+                this.configuration.AllowCurrentJob = !this.configuration.AllowCurrentJob;
+                this.configuration.Save();
+                var currentJobState = this.configuration.AllowCurrentJob ? "allowed" : "disallowed";
+                PluginLog.Information("current_job_selection_toggled allowCurrentJob={AllowCurrentJob}", this.configuration.AllowCurrentJob);
+                this.PrintInfo($"Rolling your current job is now {currentJobState}.");
+                return;
             case CommandRequestKind.JobRoulette:
                 this.RunJobRoulette(commandRequest.RoleFilter);
                 return;
@@ -157,6 +166,12 @@ public sealed class Plugin : IDalamudPlugin
             || normalizedArguments.Equals("glamour", StringComparison.OrdinalIgnoreCase))
         {
             return CommandRequest.ToggleGlamour();
+        }
+
+        if (normalizedArguments.Equals(CurrentJobArgument, StringComparison.OrdinalIgnoreCase)
+            || normalizedArguments.Equals("currentjob", StringComparison.OrdinalIgnoreCase))
+        {
+            return CommandRequest.ToggleCurrentJob();
         }
 
         if (RoleArguments.TryGetValue(normalizedArguments, out var roleFilter))
@@ -340,8 +355,14 @@ public sealed class Plugin : IDalamudPlugin
     private List<EligibleJobCandidate> GetEligibleEnabledJobs(RoleFilter? roleFilter = null)
     {
         var candidates = new List<EligibleJobCandidate>();
+        var currentJobId = this.GetCurrentJobId();
         foreach (var jobId in this.configuration.EnabledJobIds)
         {
+            if (!this.configuration.AllowCurrentJob && currentJobId == jobId)
+            {
+                continue;
+            }
+
             if (!this.IsKnownJobInRole(jobId, roleFilter))
             {
                 continue;
@@ -359,6 +380,16 @@ public sealed class Plugin : IDalamudPlugin
         }
 
         return candidates;
+    }
+
+    private uint? GetCurrentJobId()
+    {
+        if (!PlayerState.IsLoaded)
+        {
+            return null;
+        }
+
+        return PlayerState.ClassJob.RowId;
     }
 
     private bool IsKnownJobInRole(uint jobId, RoleFilter? roleFilter)
@@ -390,6 +421,7 @@ public sealed class Plugin : IDalamudPlugin
     {
         Settings,
         ToggleGlamour,
+        ToggleCurrentJob,
         JobRoulette,
         RoleInNeedRoulette,
         Invalid,
@@ -416,6 +448,8 @@ public sealed class Plugin : IDalamudPlugin
         public static CommandRequest Settings() => new(CommandRequestKind.Settings);
 
         public static CommandRequest ToggleGlamour() => new(CommandRequestKind.ToggleGlamour);
+
+        public static CommandRequest ToggleCurrentJob() => new(CommandRequestKind.ToggleCurrentJob);
 
         public static CommandRequest JobRoulette(RoleFilter? roleFilter) => new(CommandRequestKind.JobRoulette, roleFilter);
 

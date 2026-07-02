@@ -39,9 +39,24 @@ public sealed class ConfigWindow : Window
 
         ImGui.Separator();
 
-        // ── Glamour Plate ────────────────────────────────────────────────
-        if (ImGui.CollapsingHeader("Glamour Plate", ImGuiTreeNodeFlags.DefaultOpen))
+        // ── Optional Configs ─────────────────────────────────────────────
+        if (ImGui.CollapsingHeader("Optional Configs", ImGuiTreeNodeFlags.DefaultOpen))
         {
+            var allowCurrentJob = this.configuration.AllowCurrentJob;
+            if (ImGui.Checkbox("Allow rolling current job##allowCurrentJob", ref allowCurrentJob))
+            {
+                this.configuration.AllowCurrentJob = allowCurrentJob;
+                this.configuration.Save();
+            }
+
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip(
+                    "When disabled, Job Roulette will exclude your currently equipped job\n"
+                    + "from random selections.\n"
+                    + "Toggle with /jobroulette current.");
+            }
+
             var randomGlamour = this.configuration.RandomGlamourPlate;
             if (ImGui.Checkbox("Equip a random Glamour Plate##randomGlamour", ref randomGlamour))
             {
