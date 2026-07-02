@@ -39,8 +39,8 @@ public sealed class ConfigWindow : Window
 
         ImGui.Separator();
 
-        // ── Selection Behavior ───────────────────────────────────────────
-        if (ImGui.CollapsingHeader("Selection Behavior", ImGuiTreeNodeFlags.DefaultOpen))
+        // ── Optional Configs ─────────────────────────────────────────────
+        if (ImGui.CollapsingHeader("Optional Configs", ImGuiTreeNodeFlags.DefaultOpen))
         {
             var allowCurrentJob = this.configuration.AllowCurrentJob;
             if (ImGui.Checkbox("Allow rolling current job##allowCurrentJob", ref allowCurrentJob))
@@ -56,13 +56,7 @@ public sealed class ConfigWindow : Window
                     + "from random selections.\n"
                     + "Toggle with /jobroulette current.");
             }
-        }
 
-        ImGui.Separator();
-
-        // ── Glamour Plate ────────────────────────────────────────────────
-        if (ImGui.CollapsingHeader("Glamour Plate", ImGuiTreeNodeFlags.DefaultOpen))
-        {
             var randomGlamour = this.configuration.RandomGlamourPlate;
             if (ImGui.Checkbox("Equip a random Glamour Plate##randomGlamour", ref randomGlamour))
             {
