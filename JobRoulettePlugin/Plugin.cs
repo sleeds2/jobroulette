@@ -267,9 +267,11 @@ public sealed class Plugin : IDalamudPlugin
             return;
         }
 
-        // Pick a random Glamour Plate (1–20) when the feature is enabled; 0 means use the linked plate.
+        // Pick a random Glamour Plate (1–20) when enabled; 0 means use the linked plate, if any.
+        var hasLinkedGlamourPlate = HasLinkedGlamourPlate(gearsetIndex);
         byte glamourPlateId = 0;
-        if (this.configuration.RandomGlamourPlate)
+        if (this.configuration.RandomGlamourPlate
+            && (!hasLinkedGlamourPlate || this.configuration.RandomGlamourPlateWhenLinked))
         {
             glamourPlateId = (byte)this.rng.Next(1, 21);
         }
@@ -513,6 +515,12 @@ public sealed class Plugin : IDalamudPlugin
 
     private void PrintInfo(string message)
         => ChatGui.Print(new SeStringBuilder().AddText($"[JobRoulette] {message}").Build());
+
+    private static unsafe bool HasLinkedGlamourPlate(int gearsetIndex)
+    {
+        var module = RaptureGearsetModule.Instance();
+        return module != null && module->HasLinkedGlamourPlate(gearsetIndex);
+    }
 
     private static unsafe bool TryFindGearsetIndexForJob(uint classJobId, out int gearsetIndex)
     {

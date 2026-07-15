@@ -71,6 +71,33 @@ public sealed class ConfigWindow : Window
                     + "each time Job Roulette selects a job.\n"
                     + "Toggle with /jobroulette glam.");
             }
+
+            ImGui.Indent();
+            if (!randomGlamour)
+            {
+                ImGui.BeginDisabled();
+            }
+
+            var randomGlamourWhenLinked = this.configuration.RandomGlamourPlateWhenLinked;
+            if (ImGui.Checkbox("Roll even when selected gear set has a linked Glamour Plate##randomGlamourWhenLinked", ref randomGlamourWhenLinked))
+            {
+                this.configuration.RandomGlamourPlateWhenLinked = randomGlamourWhenLinked;
+                this.configuration.Save();
+            }
+
+            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+            {
+                ImGui.SetTooltip(
+                    "When disabled, gear sets with a linked Glamour Plate will use their linked plate\n"
+                    + "instead of rolling a random one. Requires random Glamour Plates to be enabled.");
+            }
+
+            if (!randomGlamour)
+            {
+                ImGui.EndDisabled();
+            }
+
+            ImGui.Unindent();
         }
 
         ImGui.Separator();
