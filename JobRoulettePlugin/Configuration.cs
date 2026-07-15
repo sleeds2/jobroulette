@@ -14,6 +14,11 @@ public sealed class Configuration : IPluginConfiguration
     public bool RandomGlamourPlate { get; set; } = false;
 
     /// <summary>
+    /// When true, a random Glamour Plate may still be applied when the selected gear set has a linked Glamour Plate.
+    /// </summary>
+    public bool RandomGlamourPlateWhenLinked { get; set; } = false;
+
+    /// <summary>
     /// When true, the job roulette may select the player's current job.
     /// </summary>
     public bool AllowCurrentJob { get; set; } = true;
