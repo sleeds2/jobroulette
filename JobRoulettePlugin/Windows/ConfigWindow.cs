@@ -7,6 +7,8 @@ namespace JobRoulettePlugin;
 
 public sealed class ConfigWindow : Window
 {
+    private static readonly string[] NotificationModeLabels = ["Chat", "Toast", "Chat and Toast"];
+
     private readonly Configuration configuration;
     private readonly Dictionary<uint, ClassJob> jobsById;
 
@@ -42,6 +44,18 @@ public sealed class ConfigWindow : Window
         // ── Optional Configs ─────────────────────────────────────────────
         if (ImGui.CollapsingHeader("Optional Configs", ImGuiTreeNodeFlags.DefaultOpen))
         {
+            var notificationMode = (int)this.configuration.NotificationMode;
+            if (ImGui.Combo("Notification mode##notificationMode", ref notificationMode, NotificationModeLabels, NotificationModeLabels.Length))
+            {
+                this.configuration.NotificationMode = (NotificationMode)notificationMode;
+                this.configuration.Save();
+            }
+
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("Choose where Job Roulette shows success and error messages. Chat preserves the original behavior.");
+            }
+
             var allowCurrentJob = this.configuration.AllowCurrentJob;
             if (ImGui.Checkbox("Allow rolling current job##allowCurrentJob", ref allowCurrentJob))
             {
