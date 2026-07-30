@@ -53,7 +53,7 @@ public sealed class ConfigWindow : Window
 
             if (ImGui.IsItemHovered())
             {
-                ImGui.SetTooltip("Choose where Job Roulette shows success and error messages. Chat preserves the original behavior.");
+                ImGui.SetTooltip("Choose where Job Roulette shows success and error messages.");
             }
 
             var allowCurrentJob = this.configuration.AllowCurrentJob;
