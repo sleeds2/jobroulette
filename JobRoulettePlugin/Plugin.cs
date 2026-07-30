@@ -57,6 +57,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
     [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
     [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
+    [PluginService] internal static IToastGui ToastGui { get; private set; } = null!;
     [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
     [PluginService] internal static IPluginLog PluginLog { get; private set; } = null!;
     [PluginService] internal static IPlayerState PlayerState { get; private set; } = null!;
@@ -511,10 +512,46 @@ public sealed class Plugin : IDalamudPlugin
     private void OpenConfigUi() => this.configWindow.IsOpen = true;
 
     private void PrintError(string message)
-        => ChatGui.PrintError($"[JobRoulette] {message}");
+    {
+        var prefixedMessage = $"[JobRoulette] {message}";
+        switch (this.configuration.NotificationMode)
+        {
+            case NotificationMode.Chat:
+                ChatGui.PrintError(prefixedMessage);
+                break;
+            case NotificationMode.Toast:
+                ToastGui.ShowError(prefixedMessage);
+                break;
+            case NotificationMode.ChatAndToast:
+                ChatGui.PrintError(prefixedMessage);
+                ToastGui.ShowError(prefixedMessage);
+                break;
+            default:
+                ChatGui.PrintError(prefixedMessage);
+                break;
+        }
+    }
 
     private void PrintInfo(string message)
-        => ChatGui.Print(new SeStringBuilder().AddText($"[JobRoulette] {message}").Build());
+    {
+        var prefixedMessage = $"[JobRoulette] {message}";
+        switch (this.configuration.NotificationMode)
+        {
+            case NotificationMode.Chat:
+                ChatGui.Print(new SeStringBuilder().AddText(prefixedMessage).Build());
+                break;
+            case NotificationMode.Toast:
+                ToastGui.ShowNormal(prefixedMessage);
+                break;
+            case NotificationMode.ChatAndToast:
+                ChatGui.Print(new SeStringBuilder().AddText(prefixedMessage).Build());
+                ToastGui.ShowNormal(prefixedMessage);
+                break;
+            default:
+                ChatGui.Print(new SeStringBuilder().AddText(prefixedMessage).Build());
+                break;
+        }
+    }
 
     private static unsafe bool HasLinkedGlamourPlate(int gearsetIndex)
     {
