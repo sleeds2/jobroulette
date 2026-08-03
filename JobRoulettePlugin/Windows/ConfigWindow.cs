@@ -24,13 +24,13 @@ public sealed class ConfigWindow : Window
 
     public override void Draw()
     {
-        ImGui.TextWrapped("Enable the jobs that can be selected by /jobroulette.");
+        ImGui.TextWrapped("Enable the classes and jobs that can be selected by /jobroulette. An unlocked job replaces its base class automatically.");
 
         if (ImGui.Button("Enable All"))
         {
             this.configuration.EnableAll(JobCatalog.All
                 .Select(x => x.JobId)
-                .Where(id => Plugin.IsJobUnlocked(this.jobsById, id)));
+                .Where(id => Plugin.TryResolveUnlockedClassJobId(this.jobsById, id, out _)));
         }
 
         ImGui.SameLine();
@@ -132,7 +132,8 @@ public sealed class ConfigWindow : Window
 
         foreach (var job in JobCatalog.All.Where(x => x.Role == role))
         {
-            var resolvedName = this.jobsById.TryGetValue(job.JobId, out var row)
+            var unlocked = Plugin.TryResolveUnlockedClassJobId(this.jobsById, job.JobId, out var resolvedClassJobId);
+            var resolvedName = unlocked && this.jobsById.TryGetValue(resolvedClassJobId, out var row)
                 ? row.Name.ExtractText()
                 : job.Name;
 
@@ -140,7 +141,6 @@ public sealed class ConfigWindow : Window
                 ? CultureInfo.CurrentCulture.TextInfo.ToTitleCase(resolvedName)
                 : resolvedName;
 
-            var unlocked = Plugin.IsJobUnlocked(this.jobsById, job.JobId);
             var enabled = this.configuration.IsEnabled(job.JobId);
 
             if (Plugin.PlayerState.IsLoaded && !unlocked && enabled)
