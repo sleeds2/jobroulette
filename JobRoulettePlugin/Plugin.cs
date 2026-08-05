@@ -369,7 +369,7 @@ public sealed class Plugin : IDalamudPlugin
                 continue;
             }
 
-            if (!TryResolveUnlockedClassJobId(this.jobsById, jobId, out var resolvedClassJobId))
+            if (!TryResolveEligibleClassJobId(this.jobsById, jobId, out var resolvedClassJobId, out var gearsetIndex))
             {
                 continue;
             }
@@ -379,10 +379,7 @@ public sealed class Plugin : IDalamudPlugin
                 continue;
             }
 
-            if (TryFindGearsetIndexForJob(resolvedClassJobId, out var gearsetIndex))
-            {
-                candidates.Add(new EligibleJobCandidate(resolvedClassJobId, gearsetIndex));
-            }
+            candidates.Add(new EligibleJobCandidate(resolvedClassJobId, gearsetIndex));
         }
 
         return candidates;
@@ -564,7 +561,7 @@ public sealed class Plugin : IDalamudPlugin
         return module != null && module->HasLinkedGlamourPlate(gearsetIndex);
     }
 
-    private static unsafe bool TryFindGearsetIndexForJob(uint classJobId, out int gearsetIndex)
+    internal static unsafe bool TryFindGearsetIndexForJob(uint classJobId, out int gearsetIndex)
     {
         var module = RaptureGearsetModule.Instance();
         if (module == null)
@@ -624,6 +621,50 @@ public sealed class Plugin : IDalamudPlugin
         }
 
         classJobId = 0;
+        return false;
+    }
+
+    internal static bool TryResolveDisplayClassJobId(
+        IReadOnlyDictionary<uint, ClassJob> jobsById,
+        uint jobId,
+        out uint classJobId)
+    {
+        var definition = JobCatalog.All.FirstOrDefault(job => job.JobId == jobId);
+        if (definition.ClassId is { } baseClassId
+            && IsJobUnlocked(jobsById, baseClassId)
+            && TryFindGearsetIndexForJob(baseClassId, out _)
+            && !TryFindGearsetIndexForJob(jobId, out _))
+        {
+            classJobId = baseClassId;
+            return true;
+        }
+
+        return TryResolveUnlockedClassJobId(jobsById, jobId, out classJobId);
+    }
+
+    private static bool TryResolveEligibleClassJobId(
+        IReadOnlyDictionary<uint, ClassJob> jobsById,
+        uint jobId,
+        out uint classJobId,
+        out int gearsetIndex)
+    {
+        if (IsJobUnlocked(jobsById, jobId) && TryFindGearsetIndexForJob(jobId, out gearsetIndex))
+        {
+            classJobId = jobId;
+            return true;
+        }
+
+        var definition = JobCatalog.All.FirstOrDefault(job => job.JobId == jobId);
+        if (definition.ClassId is { } baseClassId
+            && IsJobUnlocked(jobsById, baseClassId)
+            && TryFindGearsetIndexForJob(baseClassId, out gearsetIndex))
+        {
+            classJobId = baseClassId;
+            return true;
+        }
+
+        classJobId = 0;
+        gearsetIndex = -1;
         return false;
     }
 }
