@@ -6,7 +6,7 @@ Have a lot of jobs and don't know what to play? `Job Roulette` will pick one bas
 
 ## Features
 
-- Randomly selects from your enabled combat jobs.
+- Randomly selects from your enabled combat classes and jobs.
 - Switches to the selected job via that job's saved gear set.
 - Configuration UI with role-grouped job toggles.
 - Option to randomly select a glamour plate apply after switching to the selected job.
@@ -45,4 +45,4 @@ Have a lot of jobs and don't know what to play? `Job Roulette` will pick one bas
 - Enabled jobs should have a saved gear set.
 - If multiple gear sets exist for the same job, the first matching set is used.
 - Non-combat jobs and limited jobs are not included in roulette selection.
-- Classes are currently not supported.
+- An unlocked base class is available until its corresponding job is unlocked, at which point the job automatically replaces it.

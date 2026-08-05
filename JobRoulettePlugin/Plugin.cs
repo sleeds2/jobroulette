@@ -61,6 +61,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
     [PluginService] internal static IPluginLog PluginLog { get; private set; } = null!;
     [PluginService] internal static IPlayerState PlayerState { get; private set; } = null!;
+    [PluginService] internal static IUnlockState UnlockState { get; private set; } = null!;
 
     private readonly WindowSystem windowSystem = new("JobRoulette");
     private readonly ConfigWindow configWindow;
@@ -76,8 +77,10 @@ public sealed class Plugin : IDalamudPlugin
         this.jobsById = this.LoadSupportedJobs();
         if (this.configuration.EnabledJobIds.Count == 0)
         {
-            // Start with all jobs enabled by default for first-time users.
-            this.configuration.EnableAll(this.jobsById.Keys);
+            // Store the job slot in configuration; its unlocked class is resolved at runtime.
+            this.configuration.EnableAll(JobCatalog.All
+                .Select(job => job.JobId)
+                .Where(jobId => TryResolveUnlockedClassJobId(this.jobsById, jobId, out _)));
         }
 
         this.configWindow = new ConfigWindow(this.configuration, this.jobsById);
@@ -199,8 +202,8 @@ public sealed class Plugin : IDalamudPlugin
         {
             PluginLog.Warning("roulette_failed_no_jobs_enabled roleFilter={RoleFilter}", roleFilter);
             this.PrintError(requestedRoleLabel is null
-                ? "No jobs are enabled. Open plugin settings and enable at least one job."
-                : $"No {requestedRoleLabel} jobs are enabled. Open plugin settings and enable at least one {requestedRoleLabel} job.");
+                ? "No classes or jobs are enabled. Open plugin settings and enable at least one option."
+                : $"No {requestedRoleLabel} classes or jobs are enabled. Open plugin settings and enable at least one {requestedRoleLabel} option.");
             return;
         }
 
@@ -209,8 +212,8 @@ public sealed class Plugin : IDalamudPlugin
         {
             PluginLog.Warning("roulette_failed_no_eligible_jobs enabledKnownJobs={EnabledKnownJobs}, roleFilter={RoleFilter}", enabledKnownJobs.Count, roleFilter);
             this.PrintError(requestedRoleLabel is null
-                ? "No enabled jobs are currently eligible. Enabled jobs must be unlocked/configured and have an existing gear set."
-                : $"No enabled {requestedRoleLabel} jobs are currently eligible. Enabled {requestedRoleLabel} jobs must be unlocked/configured and have an existing gear set.");
+                ? "No enabled classes or jobs are currently eligible. Options must be unlocked and have an existing gear set."
+                : $"No enabled {requestedRoleLabel} classes or jobs are currently eligible. Options must be unlocked and have an existing gear set.");
             return;
         }
 
@@ -249,7 +252,7 @@ public sealed class Plugin : IDalamudPlugin
         if (eligibleJobs.Count == 0)
         {
             PluginLog.Warning("roulette_failed_no_eligible_jobs rouletteType={RouletteType}, rouletteName={RouletteName}, roleFilter={RoleFilter}", roulette.Type, roulette.DisplayName, roleLabel);
-            this.PrintError($"No enabled, unlocked, and configured {roleLabel} jobs are eligible for {roulette.DisplayName}. Enable at least one {roleLabel} job and make sure it has an existing gear set.");
+            this.PrintError($"No enabled, unlocked, and configured {roleLabel} classes or jobs are eligible for {roulette.DisplayName}. Enable at least one {roleLabel} option and make sure it has an existing gear set.");
             return;
         }
 
@@ -361,24 +364,24 @@ public sealed class Plugin : IDalamudPlugin
         var currentJobId = this.GetCurrentJobId();
         foreach (var jobId in this.configuration.EnabledJobIds)
         {
-            if (!this.configuration.AllowCurrentJob && currentJobId == jobId)
-            {
-                continue;
-            }
-
             if (!this.IsKnownJobInRole(jobId, roleFilter))
             {
                 continue;
             }
 
-            if (!IsJobUnlocked(this.jobsById, jobId))
+            if (!TryResolveUnlockedClassJobId(this.jobsById, jobId, out var resolvedClassJobId))
             {
                 continue;
             }
 
-            if (TryFindGearsetIndexForJob(jobId, out var gearsetIndex))
+            if (!this.configuration.AllowCurrentJob && currentJobId == resolvedClassJobId)
             {
-                candidates.Add(new EligibleJobCandidate(jobId, gearsetIndex));
+                continue;
+            }
+
+            if (TryFindGearsetIndexForJob(resolvedClassJobId, out var gearsetIndex))
+            {
+                candidates.Add(new EligibleJobCandidate(resolvedClassJobId, gearsetIndex));
             }
         }
 
@@ -492,7 +495,9 @@ public sealed class Plugin : IDalamudPlugin
 
     private Dictionary<uint, ClassJob> LoadSupportedJobs()
     {
-        var supportedIds = JobCatalog.All.Select(j => j.JobId).ToHashSet();
+        var supportedIds = JobCatalog.All
+            .SelectMany(j => j.ClassId is { } classId ? new[] { j.JobId, classId } : new[] { j.JobId })
+            .ToHashSet();
         var rows = DataManager.GetExcelSheet<ClassJob>()!;
         var result = new Dictionary<uint, ClassJob>();
 
@@ -593,7 +598,29 @@ public sealed class Plugin : IDalamudPlugin
     }
 
     internal static bool IsJobUnlocked(IReadOnlyDictionary<uint, ClassJob> jobsById, uint classJobId)
-        => jobsById.TryGetValue(classJobId, out var job) && PlayerState.GetClassJobLevel(job) > 0;
+        => jobsById.TryGetValue(classJobId, out var job) && UnlockState.IsClassJobUnlocked(job);
+
+    internal static bool TryResolveUnlockedClassJobId(
+        IReadOnlyDictionary<uint, ClassJob> jobsById,
+        uint jobId,
+        out uint classJobId)
+    {
+        if (IsJobUnlocked(jobsById, jobId))
+        {
+            classJobId = jobId;
+            return true;
+        }
+
+        var definition = JobCatalog.All.FirstOrDefault(job => job.JobId == jobId);
+        if (definition.ClassId is { } baseClassId && IsJobUnlocked(jobsById, baseClassId))
+        {
+            classJobId = baseClassId;
+            return true;
+        }
+
+        classJobId = 0;
+        return false;
+    }
 }
 
 public readonly record struct EligibleJobCandidate(uint JobId, int GearsetIndex);
@@ -602,35 +629,35 @@ public static class JobCatalog
 {
     public static readonly JobDefinition[] All =
     [
-        new(19, "Paladin", JobRole.Tank),
-        new(21, "Warrior", JobRole.Tank),
+        new(19, "Paladin", JobRole.Tank, 1),
+        new(21, "Warrior", JobRole.Tank, 3),
         new(32, "Dark Knight", JobRole.Tank),
         new(37, "Gunbreaker", JobRole.Tank),
 
-        new(24, "White Mage", JobRole.Healer),
+        new(24, "White Mage", JobRole.Healer, 6),
         new(28, "Scholar", JobRole.Healer),
         new(33, "Astrologian", JobRole.Healer),
         new(40, "Sage", JobRole.Healer),
 
-        new(20, "Monk", JobRole.Melee),
-        new(22, "Dragoon", JobRole.Melee),
-        new(30, "Ninja", JobRole.Melee),
+        new(20, "Monk", JobRole.Melee, 2),
+        new(22, "Dragoon", JobRole.Melee, 4),
+        new(30, "Ninja", JobRole.Melee, 29),
         new(34, "Samurai", JobRole.Melee),
         new(39, "Reaper", JobRole.Melee),
         new(41, "Viper", JobRole.Melee),
 
-        new(23, "Bard", JobRole.Ranged),
+        new(23, "Bard", JobRole.Ranged, 5),
         new(31, "Machinist", JobRole.Ranged),
         new(38, "Dancer", JobRole.Ranged),
 
-        new(25, "Black Mage", JobRole.Caster),
-        new(27, "Summoner", JobRole.Caster),
+        new(25, "Black Mage", JobRole.Caster, 7),
+        new(27, "Summoner", JobRole.Caster, 26),
         new(35, "Red Mage", JobRole.Caster),
         new(42, "Pictomancer", JobRole.Caster),
     ];
 }
 
-public readonly record struct JobDefinition(uint JobId, string Name, JobRole Role);
+public readonly record struct JobDefinition(uint JobId, string Name, JobRole Role, uint? ClassId = null);
 
 public enum JobRole
 {
