@@ -598,7 +598,12 @@ public sealed class Plugin : IDalamudPlugin
     }
 
     internal static bool IsJobUnlocked(IReadOnlyDictionary<uint, ClassJob> jobsById, uint classJobId)
-        => jobsById.TryGetValue(classJobId, out var job) && PlayerState.GetClassJobLevel(job) > 0;
+        => IsJobUnlocked(jobsById, classJobId, UnlockState);
+
+    internal static bool IsJobUnlocked(IReadOnlyDictionary<uint, ClassJob> jobsById, uint classJobId, IUnlockState unlockState)
+        => jobsById.TryGetValue(classJobId, out var job)
+            && PlayerState.GetClassJobLevel(job) > 0
+            && unlockState.IsClassJobUnlocked(job);
 
     internal static bool TryResolveUnlockedClassJobId(
         IReadOnlyDictionary<uint, ClassJob> jobsById,
