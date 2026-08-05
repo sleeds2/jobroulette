@@ -24,7 +24,7 @@ public sealed class ConfigWindow : Window
 
     public override void Draw()
     {
-        ImGui.TextWrapped("Enable the classes and jobs that can be selected by /jobroulette. An unlocked job replaces its base class automatically.");
+        ImGui.TextWrapped("Enable the classes and jobs that can be selected by /jobroulette.");
 
         if (ImGui.Button("Enable All"))
         {
