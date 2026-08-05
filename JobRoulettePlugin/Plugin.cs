@@ -561,7 +561,7 @@ public sealed class Plugin : IDalamudPlugin
         return module != null && module->HasLinkedGlamourPlate(gearsetIndex);
     }
 
-    internal static unsafe bool TryFindGearsetIndexForJob(uint classJobId, out int gearsetIndex)
+    private static unsafe bool TryFindGearsetIndexForJob(uint classJobId, out int gearsetIndex)
     {
         var module = RaptureGearsetModule.Instance();
         if (module == null)
@@ -629,17 +629,21 @@ public sealed class Plugin : IDalamudPlugin
         uint jobId,
         out uint classJobId)
     {
-        var definition = JobCatalog.All.FirstOrDefault(job => job.JobId == jobId);
-        if (definition.ClassId is { } baseClassId
-            && IsJobUnlocked(jobsById, baseClassId)
-            && TryFindGearsetIndexForJob(baseClassId, out _)
-            && !TryFindGearsetIndexForJob(jobId, out _))
+        if (IsJobUnlocked(jobsById, jobId))
         {
-            classJobId = baseClassId;
+            classJobId = jobId;
             return true;
         }
 
-        return TryResolveUnlockedClassJobId(jobsById, jobId, out classJobId);
+        var definition = JobCatalog.All.FirstOrDefault(job => job.JobId == jobId);
+        if (definition.ClassId is { } baseClassId)
+        {
+            classJobId = baseClassId;
+            return IsJobUnlocked(jobsById, baseClassId);
+        }
+
+        classJobId = jobId;
+        return false;
     }
 
     private static bool TryResolveEligibleClassJobId(

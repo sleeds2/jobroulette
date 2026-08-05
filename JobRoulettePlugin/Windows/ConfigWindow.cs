@@ -133,7 +133,7 @@ public sealed class ConfigWindow : Window
         foreach (var job in JobCatalog.All.Where(x => x.Role == role))
         {
             var unlocked = Plugin.TryResolveDisplayClassJobId(this.jobsById, job.JobId, out var resolvedClassJobId);
-            var resolvedName = unlocked && this.jobsById.TryGetValue(resolvedClassJobId, out var row)
+            var resolvedName = this.jobsById.TryGetValue(resolvedClassJobId, out var row)
                 ? row.Name.ExtractText()
                 : job.Name;
 
