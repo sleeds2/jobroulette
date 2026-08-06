@@ -4,6 +4,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 using Lumina.Excel.Sheets;
@@ -61,7 +62,6 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
     [PluginService] internal static IPluginLog PluginLog { get; private set; } = null!;
     [PluginService] internal static IPlayerState PlayerState { get; private set; } = null!;
-    [PluginService] internal static IQuestState QuestState { get; private set; } = null!;
     [PluginService] internal static IUnlockState UnlockState { get; private set; } = null!;
 
     private readonly WindowSystem windowSystem = new("JobRoulette");
@@ -604,11 +604,19 @@ public sealed class Plugin : IDalamudPlugin
             && PlayerState.GetClassJobLevel(job) > 0
             && unlockState.IsClassJobUnlocked(job);
 
-    private static bool IsRequiredUnlockQuestComplete(uint classJobId, ClassJob job)
+    private static unsafe bool IsRequiredUnlockQuestComplete(uint classJobId, ClassJob job)
     {
         var definition = JobCatalog.All.FirstOrDefault(candidate => candidate.JobId == classJobId);
-        return definition.ClassId is null
-            || (job.UnlockQuest.RowId != 0 && QuestState.IsQuestCompleted(job.UnlockQuest.RowId));
+        if (definition.ClassId is null)
+        {
+            return true;
+        }
+
+        var unlockQuestId = job.UnlockQuest.RowId;
+        var questManager = QuestManager.Instance();
+        return unlockQuestId != 0
+            && questManager != null
+            && questManager->IsQuestComplete(unlockQuestId);
     }
 
     internal static bool TryResolveUnlockedClassJobId(
