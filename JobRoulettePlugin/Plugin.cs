@@ -61,6 +61,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
     [PluginService] internal static IPluginLog PluginLog { get; private set; } = null!;
     [PluginService] internal static IPlayerState PlayerState { get; private set; } = null!;
+    [PluginService] internal static IQuestState QuestState { get; private set; } = null!;
     [PluginService] internal static IUnlockState UnlockState { get; private set; } = null!;
 
     private readonly WindowSystem windowSystem = new("JobRoulette");
@@ -595,12 +596,20 @@ public sealed class Plugin : IDalamudPlugin
     }
 
     internal static bool IsJobUnlocked(IReadOnlyDictionary<uint, ClassJob> jobsById, uint classJobId)
-        => IsJobUnlocked(jobsById, classJobId, UnlockState);
+        => IsJobUnlocked(jobsById, classJobId, UnlockState)
+            && IsRequiredUnlockQuestComplete(classJobId, jobsById[classJobId]);
 
     internal static bool IsJobUnlocked(IReadOnlyDictionary<uint, ClassJob> jobsById, uint classJobId, IUnlockState unlockState)
         => jobsById.TryGetValue(classJobId, out var job)
             && PlayerState.GetClassJobLevel(job) > 0
             && unlockState.IsClassJobUnlocked(job);
+
+    private static bool IsRequiredUnlockQuestComplete(uint classJobId, ClassJob job)
+    {
+        var definition = JobCatalog.All.FirstOrDefault(candidate => candidate.JobId == classJobId);
+        return definition.ClassId is null
+            || (job.UnlockQuest.RowId != 0 && QuestState.IsQuestCompleted(job.UnlockQuest.RowId));
+    }
 
     internal static bool TryResolveUnlockedClassJobId(
         IReadOnlyDictionary<uint, ClassJob> jobsById,
