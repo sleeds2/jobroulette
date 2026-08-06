@@ -604,7 +604,7 @@ public sealed class Plugin : IDalamudPlugin
             && PlayerState.GetClassJobLevel(job) > 0
             && unlockState.IsClassJobUnlocked(job);
 
-    private static unsafe bool IsRequiredUnlockQuestComplete(uint classJobId, ClassJob job)
+    private static bool IsRequiredUnlockQuestComplete(uint classJobId, ClassJob job)
     {
         var definition = JobCatalog.All.FirstOrDefault(candidate => candidate.JobId == classJobId);
         if (definition.ClassId is null)
@@ -613,10 +613,8 @@ public sealed class Plugin : IDalamudPlugin
         }
 
         var unlockQuestId = job.UnlockQuest.RowId;
-        var questManager = QuestManager.Instance();
         return unlockQuestId != 0
-            && questManager != null
-            && questManager->IsQuestComplete(unlockQuestId);
+            && QuestManager.IsQuestComplete(unlockQuestId);
     }
 
     internal static bool TryResolveUnlockedClassJobId(
