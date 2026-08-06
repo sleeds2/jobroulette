@@ -4,6 +4,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Client.Game;
 using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 using Lumina.Excel.Sheets;
@@ -369,7 +370,7 @@ public sealed class Plugin : IDalamudPlugin
                 continue;
             }
 
-            if (!TryResolveUnlockedClassJobId(this.jobsById, jobId, out var resolvedClassJobId))
+            if (!TryResolveEligibleClassJobId(this.jobsById, jobId, out var resolvedClassJobId, out var gearsetIndex))
             {
                 continue;
             }
@@ -379,10 +380,7 @@ public sealed class Plugin : IDalamudPlugin
                 continue;
             }
 
-            if (TryFindGearsetIndexForJob(resolvedClassJobId, out var gearsetIndex))
-            {
-                candidates.Add(new EligibleJobCandidate(resolvedClassJobId, gearsetIndex));
-            }
+            candidates.Add(new EligibleJobCandidate(resolvedClassJobId, gearsetIndex));
         }
 
         return candidates;
@@ -598,12 +596,26 @@ public sealed class Plugin : IDalamudPlugin
     }
 
     internal static bool IsJobUnlocked(IReadOnlyDictionary<uint, ClassJob> jobsById, uint classJobId)
-        => IsJobUnlocked(jobsById, classJobId, UnlockState);
+        => IsJobUnlocked(jobsById, classJobId, UnlockState)
+            && IsRequiredUnlockQuestComplete(classJobId, jobsById[classJobId]);
 
     internal static bool IsJobUnlocked(IReadOnlyDictionary<uint, ClassJob> jobsById, uint classJobId, IUnlockState unlockState)
         => jobsById.TryGetValue(classJobId, out var job)
             && PlayerState.GetClassJobLevel(job) > 0
             && unlockState.IsClassJobUnlocked(job);
+
+    private static bool IsRequiredUnlockQuestComplete(uint classJobId, ClassJob job)
+    {
+        var definition = JobCatalog.All.FirstOrDefault(candidate => candidate.JobId == classJobId);
+        if (definition.ClassId is null)
+        {
+            return true;
+        }
+
+        var unlockQuestId = job.UnlockQuest.RowId;
+        return unlockQuestId != 0
+            && QuestManager.IsQuestComplete(unlockQuestId);
+    }
 
     internal static bool TryResolveUnlockedClassJobId(
         IReadOnlyDictionary<uint, ClassJob> jobsById,
@@ -624,6 +636,54 @@ public sealed class Plugin : IDalamudPlugin
         }
 
         classJobId = 0;
+        return false;
+    }
+
+    internal static bool TryResolveDisplayClassJobId(
+        IReadOnlyDictionary<uint, ClassJob> jobsById,
+        uint jobId,
+        out uint classJobId)
+    {
+        if (IsJobUnlocked(jobsById, jobId))
+        {
+            classJobId = jobId;
+            return true;
+        }
+
+        var definition = JobCatalog.All.FirstOrDefault(job => job.JobId == jobId);
+        if (definition.ClassId is { } baseClassId)
+        {
+            classJobId = baseClassId;
+            return IsJobUnlocked(jobsById, baseClassId);
+        }
+
+        classJobId = jobId;
+        return false;
+    }
+
+    private static bool TryResolveEligibleClassJobId(
+        IReadOnlyDictionary<uint, ClassJob> jobsById,
+        uint jobId,
+        out uint classJobId,
+        out int gearsetIndex)
+    {
+        if (IsJobUnlocked(jobsById, jobId) && TryFindGearsetIndexForJob(jobId, out gearsetIndex))
+        {
+            classJobId = jobId;
+            return true;
+        }
+
+        var definition = JobCatalog.All.FirstOrDefault(job => job.JobId == jobId);
+        if (definition.ClassId is { } baseClassId
+            && IsJobUnlocked(jobsById, baseClassId)
+            && TryFindGearsetIndexForJob(baseClassId, out gearsetIndex))
+        {
+            classJobId = baseClassId;
+            return true;
+        }
+
+        classJobId = 0;
+        gearsetIndex = -1;
         return false;
     }
 }
